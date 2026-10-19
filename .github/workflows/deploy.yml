@@ -1,0 +1,34 @@
+name: Deploy
+
+# HU-17: despliega en Cloud Run cada vez que se fusiona algo en main.
+# Requiere dos secretos del repositorio (Settings > Secrets and variables > Actions):
+#   GCP_PROJECT_ID  ID del proyecto de GCP
+#   GCP_SA_KEY      llave JSON de la cuenta de servicio que lanza Cloud Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Construir y desplegar con Cloud Build
+        run: |
+          gcloud builds submit . \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --config cloudbuild.yaml \
+            --substitutions "_TAG=${GITHUB_SHA::7}"
