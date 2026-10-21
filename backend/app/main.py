@@ -5,11 +5,21 @@ from fastapi.staticfiles import StaticFiles
 from app.almacenamiento import CARPETA_ESTATICOS, CARPETA_FOTOS
 from app.config import settings
 from app.models import (  # noqa: F401
+    Categoria,
     Comercio,
+    Compra,
+    CompraItem,
+    MovimientoInventario,
+    Producto,
+    Proveedor,
     Usuario,
 )
 from app.routers import (
     auth,
+    categorias,
+    compras,
+    productos,
+    proveedores,
 )
 
 # Debe existir antes de montar StaticFiles, aunque este vacia (por ejemplo en
@@ -42,6 +52,10 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=CARPETA_ESTATICOS), name="static")
 
 app.include_router(auth.router)
+app.include_router(categorias.router)
+app.include_router(productos.router)
+app.include_router(proveedores.router)
+app.include_router(compras.router)
 
 
 @app.get("/", tags=["Estado"])
