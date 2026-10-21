@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react'
 import { urlFoto } from './api.js'
 import { useAuth } from './auth.jsx'
+import Categorias from './pages/Categorias.jsx'
+import Compras from './pages/Compras.jsx'
 import Login from './pages/Login.jsx'
+import Productos from './pages/Productos.jsx'
+import Proveedores from './pages/Proveedores.jsx'
 
 // rol: null = todos; 'ADMIN' o 'CAJERO' = solo ese rol.
 // El backend valida lo mismo: esconder el menú es comodidad, no seguridad.
 const VISTAS = [
+  { clave: 'productos', titulo: 'Productos', icono: '▦', rol: null },
+  { clave: 'categorias', titulo: 'Categorías', icono: '☰', rol: null },
+  { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
+  { clave: 'compras', titulo: 'Compras', icono: '↧', rol: null },
 ]
 
 function iniciales(nombre = '') {
@@ -102,6 +110,10 @@ export default function App() {
       </aside>
 
       <main className="contenido">
+        {activa === 'productos' && <Productos />}
+        {activa === 'categorias' && <Categorias />}
+        {activa === 'proveedores' && <Proveedores />}
+        {activa === 'compras' && <Compras />}
       </main>
     </div>
   )
