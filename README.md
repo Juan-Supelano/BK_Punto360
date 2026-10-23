@@ -12,6 +12,82 @@ Sistema de punto de venta (POS) para la gestión de productos, inventario, venta
 
 ---
 
+## Gestión colaborativa del proyecto
+
+Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, migrando por historias de usuario un POS que ya funcionaba.
+
+### Equipo de desarrollo
+
+| Rol | Integrante | Historias |
+| --- | --- | --- |
+| Product Owner | [POR COMPLETAR] | — |
+| Backend y base de datos | @paulatatian | HU-01, 02, 07, 08, 13, 14 |
+| Frontend | @pipereinaa | HU-03, 04, 09, 10, 15, 16 |
+| DevOps y documentación | @Juan-Supelano | HU-05, 06, 11, 12, 17, 18 |
+
+@Juan-Supelano revisa y aprueba los PR; los suyos los revisa @paulatatian.
+
+### Arquitectura
+
+- **Frontend:** React 18 + Vite, servido con nginx
+- **Backend:** FastAPI (Python 3.12), SQLAlchemy, JWT
+- **Base de datos:** PostgreSQL 16 (Cloud SQL)
+- **Infraestructura:** Google Cloud Platform (Cloud Run, Cloud SQL, Secret Manager, Artifact Registry)
+- **CI/CD:** GitHub Actions (`ci.yml`, `deploy.yml`, `project-automation.yml`) y Cloud Build
+- **Contenedores:** Docker y docker compose
+
+### Metodología
+
+- **Tablero:** Backlog → Ready → In Progress → Review → Done, con campos Sprint, Responsable, Prioridad, Estimación y Tipo.
+- **Historias:** 18, seis por integrante y dos por sprint, con criterios de aceptación como casillas.
+- **Ramas:** `main`, `produccion`, `preproduccion` y `desarrollo`. Cada HU sale de `desarrollo` en una rama `feature/HU-XX-...` y vuelve por PR con revisión.
+- **Commits:** `feat(HU-XX): descripción`, con `Refs #N` al issue de la HU.
+- **Automatización:** al asignar un issue la tarjeta pasa a In Progress; al abrir el PR, a Review; al fusionarlo, a Done y el issue se cierra.
+
+### Sprints
+
+| Sprint | Enfoque | Historias |
+| --- | --- | --- |
+| Sprint 1 | Fundamentos | HU-01 Esquema y datos semilla · HU-02 API base · HU-03 Proyecto React · HU-04 Login · HU-05 Docker · HU-06 CI |
+| Sprint 2 | Funcionalidad principal | HU-07 JWT y roles · HU-08 API de catálogo e inventario · HU-09 Pantallas de catálogo · HU-10 Clientes y perfil · HU-11 Pruebas · HU-12 Cloud SQL |
+| Sprint 3 | Ventas, despliegue y cierre | HU-13 API de ventas · HU-14 Usuarios · HU-15 Punto de venta · HU-16 Estabilización · HU-17 Despliegue · HU-18 Documentación |
+
+Los PR de cada historia, sus fechas y la evidencia están en [docs/metricas.md](docs/metricas.md) y en el [tablero](https://github.com/users/Juan-Supelano/projects/5).
+
+### Métricas
+
+Resumen de [docs/metricas.md](docs/metricas.md), generado con `metricas.py`:
+
+- **Velocity promedio:** [POR COMPLETAR] puntos por sprint
+- **Historias completadas:** [POR COMPLETAR]/18
+- **Bugs encontrados:** [POR COMPLETAR]
+- **Tiempo promedio de resolución (lead time):** [POR COMPLETAR]
+
+### Instalación rápida
+
+```bash
+git clone https://github.com/Juan-Supelano/BK_Punto360.git
+cd BK_Punto360
+docker compose up --build
+```
+
+Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instalación sin Docker está en [Instalación y ejecución](#instalación-y-ejecución), y la operación en la nube en [docs/runbook.md](docs/runbook.md).
+
+### Documentación
+
+- [Plan de pruebas E2E](docs/plan-pruebas.md)
+- [Runbook de despliegue y rollback](docs/runbook.md)
+- [Retrospectiva y lecciones aprendidas](docs/retrospectiva.md)
+- [Despliegue en GCP](docs/despliegue-gcp.md)
+- API: sección [Endpoints](#endpoints) y Swagger en `/docs`
+
+### Enlaces
+
+- [Aplicación](POR COMPLETAR: URL de cuadre-pos-web)
+- [Videos de demostración](POR COMPLETAR: enlace de Drive)
+- [API](https://cuadre-pos-api-kbybcvo7wa-uc.a.run.app/docs)
+- [GitHub Project](https://github.com/users/Juan-Supelano/projects/5)
+
 ## Tabla de contenidos
 
 - [Descripción](#descripción)
