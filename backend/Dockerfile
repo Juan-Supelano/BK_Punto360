@@ -17,6 +17,10 @@ COPY app ./app
 # fotos nuevas van a Cloud Storage y en la base solo queda la URL.
 RUN mkdir -p /app/static/fotos
 
+# La API no corre como root: usuario sin privilegios, dueño solo de static/.
+RUN useradd --create-home --uid 1000 app && chown -R app /app/static
+USER app
+
 # Cloud Run inyecta PORT (8080 por defecto) y espera que el contenedor escuche ahi.
 ENV PORT=8080
 EXPOSE 8080
