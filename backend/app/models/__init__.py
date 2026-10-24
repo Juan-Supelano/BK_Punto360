@@ -6,6 +6,7 @@ from app.models.movimiento import MovimientoInventario
 from app.models.producto import Producto
 from app.models.proveedor import Proveedor
 from app.models.usuario import Usuario
+from app.models.venta import Venta, VentaItem
 
 __all__ = [
     "Categoria",
@@ -17,4 +18,6 @@ __all__ = [
     "Producto",
     "Proveedor",
     "Usuario",
+    "Venta",
+    "VentaItem",
 ]

@@ -14,6 +14,8 @@ from app.models import (  # noqa: F401
     Producto,
     Proveedor,
     Usuario,
+    Venta,
+    VentaItem,
 )
 from app.routers import (
     auth,
@@ -23,6 +25,7 @@ from app.routers import (
     perfil,
     productos,
     proveedores,
+    ventas,
 )
 
 # Debe existir antes de montar StaticFiles, aunque este vacia (por ejemplo en
@@ -60,6 +63,7 @@ app.include_router(productos.router)
 app.include_router(proveedores.router)
 app.include_router(compras.router)
 app.include_router(clientes.router)
+app.include_router(ventas.router)
 app.include_router(perfil.router)
 
 
