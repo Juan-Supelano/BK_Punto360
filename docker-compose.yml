@@ -1,0 +1,49 @@
+# HU-05: levanta base de datos, API y frontend con un solo comando.
+#   docker compose up --build
+# Frontend: http://localhost:8080  ·  API: http://localhost:8000/docs
+# La base se crea con database/schema.sql y database/seed.sql solo la primera vez;
+# para empezar de cero: docker compose down -v
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: proyecto_nube
+    volumes:
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - datos-pg:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 para no chocar con un PostgreSQL local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d proyecto_nube"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/proyecto_nube
+      JWT_SECRETO: solo-para-desarrollo-local
+      CORS_ORIGENES: http://localhost:8080,http://localhost:5173
+    ports:
+      - "8000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+volumes:
+  datos-pg:
