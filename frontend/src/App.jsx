@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react'
 import { urlFoto } from './api.js'
 import { useAuth } from './auth.jsx'
+import CambiarPasswordObligatorio from './pages/CambiarPasswordObligatorio.jsx'
+import Categorias from './pages/Categorias.jsx'
+import Clientes from './pages/Clientes.jsx'
+import Compras from './pages/Compras.jsx'
+import Empresa from './pages/Empresa.jsx'
 import Login from './pages/Login.jsx'
+import Perfil from './pages/Perfil.jsx'
+import Productos from './pages/Productos.jsx'
+import Proveedores from './pages/Proveedores.jsx'
 
 // rol: null = todos; 'ADMIN' o 'CAJERO' = solo ese rol.
 // El backend valida lo mismo: esconder el menú es comodidad, no seguridad.
 const VISTAS = [
+  { clave: 'productos', titulo: 'Productos', icono: '▦', rol: null },
+  { clave: 'categorias', titulo: 'Categorías', icono: '☰', rol: null },
+  { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
+  { clave: 'compras', titulo: 'Compras', icono: '↧', rol: null },
+  { clave: 'clientes', titulo: 'Clientes', icono: '☻', rol: null },
+  { clave: 'perfil', titulo: 'Mi perfil', icono: '☺', rol: null },
+  { clave: 'empresa', titulo: 'Mi empresa', icono: '⌂', rol: null },
 ]
 
 function iniciales(nombre = '') {
@@ -45,6 +60,14 @@ export default function App() {
 
   if (!usuario) {
     return <Login />
+  }
+
+  // Contraseña temporal (recien creada o reseteada por un ADMIN): se bloquea
+  // el resto de la app hasta que la cambie. El backend hace cumplir lo mismo
+  // en cada endpoint de negocio; esto solo evita que el usuario se quede
+  // "atascado" viendo pantallas que igual le van a rechazar las peticiones.
+  if (usuario.debe_cambiar_password) {
+    return <CambiarPasswordObligatorio />
   }
 
   const comercio = usuario.comercio
@@ -102,6 +125,13 @@ export default function App() {
       </aside>
 
       <main className="contenido">
+        {activa === 'productos' && <Productos />}
+        {activa === 'categorias' && <Categorias />}
+        {activa === 'proveedores' && <Proveedores />}
+        {activa === 'compras' && <Compras />}
+        {activa === 'clientes' && <Clientes />}
+        {activa === 'perfil' && <Perfil />}
+        {activa === 'empresa' && <Empresa />}
       </main>
     </div>
   )
