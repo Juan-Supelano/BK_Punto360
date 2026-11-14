@@ -10,6 +10,7 @@ import Login from './pages/Login.jsx'
 import Perfil from './pages/Perfil.jsx'
 import Productos from './pages/Productos.jsx'
 import Proveedores from './pages/Proveedores.jsx'
+import Usuarios from './pages/Usuarios.jsx'
 
 // rol: null = todos; 'ADMIN' o 'CAJERO' = solo ese rol.
 // El backend valida lo mismo: esconder el menú es comodidad, no seguridad.
@@ -19,6 +20,7 @@ const VISTAS = [
   { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
   { clave: 'compras', titulo: 'Compras', icono: '↧', rol: null },
   { clave: 'clientes', titulo: 'Clientes', icono: '☻', rol: null },
+  { clave: 'usuarios', titulo: 'Usuarios', icono: '⨁', rol: 'ADMIN' },
   { clave: 'perfil', titulo: 'Mi perfil', icono: '☺', rol: null },
   { clave: 'empresa', titulo: 'Mi empresa', icono: '⌂', rol: null },
 ]
@@ -130,6 +132,7 @@ export default function App() {
         {activa === 'proveedores' && <Proveedores />}
         {activa === 'compras' && <Compras />}
         {activa === 'clientes' && <Clientes />}
+        {activa === 'usuarios' && esAdmin && <Usuarios />}
         {activa === 'perfil' && <Perfil />}
         {activa === 'empresa' && <Empresa />}
       </main>

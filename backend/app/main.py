@@ -25,6 +25,7 @@ from app.routers import (
     perfil,
     productos,
     proveedores,
+    usuarios,
     ventas,
 )
 
@@ -65,6 +66,7 @@ app.include_router(compras.router)
 app.include_router(clientes.router)
 app.include_router(ventas.router)
 app.include_router(perfil.router)
+app.include_router(usuarios.router)
 
 
 @app.get("/", tags=["Estado"])
