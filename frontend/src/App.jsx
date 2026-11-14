@@ -11,10 +11,14 @@ import Perfil from './pages/Perfil.jsx'
 import Productos from './pages/Productos.jsx'
 import Proveedores from './pages/Proveedores.jsx'
 import Usuarios from './pages/Usuarios.jsx'
+import Vender from './pages/Vender.jsx'
+import Ventas from './pages/Ventas.jsx'
 
 // rol: null = todos; 'ADMIN' o 'CAJERO' = solo ese rol.
 // El backend valida lo mismo: esconder el menú es comodidad, no seguridad.
 const VISTAS = [
+  { clave: 'vender', titulo: 'Vender', icono: '⊕', rol: 'CAJERO' },
+  { clave: 'ventas', titulo: 'Ventas', icono: '≡', rol: null },
   { clave: 'productos', titulo: 'Productos', icono: '▦', rol: null },
   { clave: 'categorias', titulo: 'Categorías', icono: '☰', rol: null },
   { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
@@ -41,20 +45,16 @@ export default function App() {
   const rol = usuario?.rol
   const esAdmin = rol === 'ADMIN'
   const visibles = VISTAS.filter((v) => v.rol === null || v.rol === rol)
-  const preferida = esAdmin ? 'ventas' : 'vender'
-  // Mientras se migran las HU puede que la vista preferida aún no exista.
-  const inicial = visibles.some((v) => v.clave === preferida)
-    ? preferida
-    : visibles[0]?.clave ?? null
+  const inicial = esAdmin ? 'ventas' : 'vender'
 
   // Al entrar, y si el rol deja sin acceso a la vista actual, cae en la inicial.
   useEffect(() => {
     if (!rol) return
     const actual = VISTAS.find((v) => v.clave === vista)
     if (!actual || (actual.rol !== null && actual.rol !== rol)) {
-      setVista(inicial)
+      setVista(esAdmin ? 'ventas' : 'vender')
     }
-  }, [rol, vista, inicial])
+  }, [rol, vista, esAdmin])
 
   if (verificando) {
     return <div className="pantalla-carga">Cargando…</div>
@@ -127,6 +127,8 @@ export default function App() {
       </aside>
 
       <main className="contenido">
+        {activa === 'vender' && !esAdmin && <Vender />}
+        {activa === 'ventas' && <Ventas />}
         {activa === 'productos' && <Productos />}
         {activa === 'categorias' && <Categorias />}
         {activa === 'proveedores' && <Proveedores />}
