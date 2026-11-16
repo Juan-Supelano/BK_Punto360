@@ -1,0 +1,62 @@
+# HU-17: construye las imágenes, las publica en Artifact Registry y despliega
+# los dos servicios de Cloud Run. Lo dispara .github/workflows/deploy.yml.
+#
+# Solo cambia la imagen de cada servicio: Cloud Run conserva la configuración
+# que ya tienen (secretos, instancia de Cloud SQL, CORS, memoria), definida
+# una vez con docs/despliegue-gcp.md.
+#
+# Ejecución manual desde la raíz del repositorio:
+#   gcloud builds submit --config cloudbuild.yaml --substitutions _TAG=manual .
+
+substitutions:
+  _REGION: us-central1
+  _REPO: cuadre-pos
+  _TAG: manual
+
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:${_TAG}", "backend"]
+
+  - id: push-api
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:${_TAG}"]
+
+  - id: deploy-api
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - cuadre-pos-api
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:${_TAG}
+      - --region=${_REGION}
+
+  # VITE_API_URL sale de frontend/.env.production y queda fijo en el build.
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:${_TAG}", "frontend"]
+
+  - id: push-web
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:${_TAG}"]
+
+  - id: deploy-web
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    waitFor: ["push-web", "deploy-api"]
+    args:
+      - run
+      - deploy
+      - cuadre-pos-web
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:${_TAG}
+      - --region=${_REGION}
+      - --port=8080
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

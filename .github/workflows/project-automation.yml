@@ -1,0 +1,62 @@
+name: Project Automation
+
+# Mueve las tarjetas del GitHub Project según lo que pase en el repositorio:
+#   - Issue asignado            -> In Progress
+#   - PR abierto con "Refs #N"  -> Review (In review)
+#   - PR fusionado              -> Done, y se cierra el issue
+#
+# Requiere el secreto PROJECT_TOKEN: un token clásico de Juan-Supelano con los
+# scopes "project" y "repo" (el GITHUB_TOKEN no puede editar Projects de usuario).
+
+on:
+  issues:
+    types: [assigned]
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+
+env:
+  PROJECT_ID: PVT_kwHOCq3__s4BngPV
+  GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+
+jobs:
+  mover-tarjeta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar el token
+        id: token
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Falta el secreto PROJECT_TOKEN; no se mueve ninguna tarjeta."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Issue asignado -> In Progress
+        if: steps.token.outputs.ok == 'true' && github.event_name == 'issues'
+        run: bash .github/scripts/mover-tarjeta.sh "In Progress" "${{ github.event.issue.number }}"
+
+      - name: Issues referenciados en el PR
+        id: refs
+        if: steps.token.outputs.ok == 'true' && github.event_name == 'pull_request'
+        env:
+          CUERPO: ${{ github.event.pull_request.body }}
+        run: |
+          NUMS=$(printf '%s' "$CUERPO" | grep -oiE '(refs|closes|fixes|resuelve)[[:space:]]+#[0-9]+' | grep -oE '[0-9]+' | sort -u | tr '\n' ' ')
+          echo "Issues: ${NUMS:-ninguno}"
+          echo "nums=$NUMS" >> "$GITHUB_OUTPUT"
+
+      - name: PR abierto -> Review
+        if: steps.refs.outputs.nums != '' && github.event.action != 'closed'
+        run: bash .github/scripts/mover-tarjeta.sh "Review" ${{ steps.refs.outputs.nums }}
+
+      - name: PR fusionado -> Done y cerrar issue
+        if: steps.refs.outputs.nums != '' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        run: |
+          bash .github/scripts/mover-tarjeta.sh "Done" ${{ steps.refs.outputs.nums }}
+          for N in ${{ steps.refs.outputs.nums }}; do
+            gh issue close "$N" --repo "$GITHUB_REPOSITORY" \
+              --comment "Completada en el PR #${{ github.event.pull_request.number }}." || true
+          done
