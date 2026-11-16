@@ -1,8 +1,8 @@
 name: CI
 
 # HU-06: valida cada PR hacia desarrollo y main.
-# Cada paso revisa si existe su carpeta, porque el proyecto se migra por HU
-# y al principio desarrollo no tiene backend ni frontend.
+# HU-11: corre las pruebas del backend contra una base PostgreSQL temporal.
+# Cada paso revisa si existe su carpeta, porque el proyecto se migra por HU.
 
 on:
   pull_request:
@@ -11,8 +11,26 @@ on:
 
 jobs:
   backend:
-    name: Backend (dependencias + lint)
+    name: Backend (lint + pruebas)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/pos_test
+      JWT_SECRETO: secreto-solo-para-ci
     steps:
       - uses: actions/checkout@v4
 
@@ -25,11 +43,27 @@ jobs:
         if: hashFiles('backend/requirements.txt') != ''
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt ruff
+          pip install -r backend/requirements.txt
+          if [ -f backend/requirements-dev.txt ]; then
+            pip install -r backend/requirements-dev.txt
+          else
+            pip install ruff
+          fi
 
       - name: Lint con ruff (errores de sintaxis, nombres e imports)
         if: hashFiles('backend/requirements.txt') != ''
         run: ruff check backend --select E9,F
+
+      - name: Cargar esquema y datos de prueba
+        if: hashFiles('backend/tests/**') != ''
+        run: |
+          psql -h localhost -U postgres -d pos_test -v ON_ERROR_STOP=1 -q -f database/schema.sql
+          psql -h localhost -U postgres -d pos_test -v ON_ERROR_STOP=1 -q -f database/seed.sql
+
+      - name: Pruebas con cobertura
+        if: hashFiles('backend/tests/**') != ''
+        working-directory: backend
+        run: pytest --cov=app --cov-report=term-missing
 
       - name: Sin backend todavía
         if: hashFiles('backend/requirements.txt') == ''
