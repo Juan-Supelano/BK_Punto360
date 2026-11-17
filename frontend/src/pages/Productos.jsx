@@ -16,6 +16,40 @@ const VACIO = {
   categoria_id: '',
 }
 
+// Cuántos movimientos trae el historial de un producto (los más recientes).
+const LIMITE_HISTORIAL = 200
+
+const fechaHora = new Intl.DateTimeFormat('es-CO', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+function formatearFecha(valor) {
+  const d = new Date(valor)
+  return Number.isNaN(d.getTime()) ? '—' : fechaHora.format(d)
+}
+
+const TIPOS_MOVIMIENTO = {
+  COMPRA: 'Compra',
+  VENTA: 'Venta',
+  AJUSTE: 'Ajuste manual',
+  ENTRADA: 'Entrada',
+  SALIDA: 'Salida',
+}
+
+// Cómo se lee en pantalla cada fila del kardex.
+function nombreMovimiento(m) {
+  if (m.tipo === 'ANULACION') {
+    if (m.origen === 'VENTA') return 'Anulación de venta'
+    if (m.origen === 'COMPRA') return 'Anulación de compra'
+    return 'Anulación'
+  }
+  return TIPOS_MOVIMIENTO[m.tipo] || m.tipo
+}
+
 export default function Productos() {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -32,6 +66,10 @@ export default function Productos() {
   // El SKU lo arma siempre el backend con el prefijo de la categoría.
   // skuPrevio es solo la vista previa de lo que se va a asignar.
   const [skuPrevio, setSkuPrevio] = useState('')
+
+  // Historial (kardex) del producto al que se le dio clic.
+  // movimientos queda en null mientras carga.
+  const [historial, setHistorial] = useState(null)
 
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(true)
@@ -178,6 +216,20 @@ export default function Productos() {
     }
   }
 
+  async function verHistorial(producto) {
+    setHistorial({ producto, movimientos: null })
+    try {
+      const movimientos = await api.movimientosProducto(producto.id, LIMITE_HISTORIAL)
+      // Si mientras cargaba se cerró o se abrió otro producto, no se pisa.
+      setHistorial((h) =>
+        h?.producto.id === producto.id ? { ...h, movimientos } : h,
+      )
+    } catch (e) {
+      setHistorial(null)
+      setError(e.message)
+    }
+  }
+
   async function alternarActivo(producto) {
     try {
       if (producto.activo) {
@@ -205,7 +257,10 @@ export default function Productos() {
       <div className="titulo-vista">
         <div>
           <h2>Productos</h2>
-          <p className="sutil">Catálogo e inventario del punto de venta</p>
+          <p className="sutil">
+            Catálogo e inventario del punto de venta. Haz clic en un producto para
+            ver su historial de movimientos.
+          </p>
         </div>
         <button className="btn btn-primario" onClick={abrirNuevo}>
           + Nuevo producto
@@ -291,7 +346,14 @@ export default function Productos() {
 
             {!cargando &&
               productos.map((p) => (
-                <tr key={p.id} className={p.activo ? '' : 'fila-inactiva'}>
+                <tr
+                  key={p.id}
+                  className={p.activo ? 'fila-clicable' : 'fila-clicable fila-inactiva'}
+                  onClick={(e) => {
+                    // Los botones de la fila (stock, editar, desactivar) hacen lo suyo.
+                    if (!e.target.closest('button')) verHistorial(p)
+                  }}
+                >
                   <td className="mono">{p.sku}</td>
                   <td>
                     <strong>{p.nombre}</strong>
@@ -451,6 +513,92 @@ export default function Productos() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {historial && (
+        <div className="fondo-modal" onClick={() => setHistorial(null)}>
+          <div className="modal modal-ancho" onClick={(e) => e.stopPropagation()}>
+            <h3>Historial de {historial.producto.nombre}</h3>
+            <p className="sutil">
+              <span className="mono">{historial.producto.sku}</span> · Stock actual:{' '}
+              {historial.producto.stock_actual} {historial.producto.unidad_medida}
+            </p>
+
+            <div className="tabla-envoltura" style={{ marginTop: 16 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Movimiento</th>
+                    <th>Documento</th>
+                    <th className="derecha">Cantidad</th>
+                    <th className="centro">Stock</th>
+                    <th>Usuario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.movimientos === null && (
+                    <tr>
+                      <td colSpan="6" className="celda-vacia">
+                        Cargando…
+                      </td>
+                    </tr>
+                  )}
+
+                  {historial.movimientos?.map((m) => {
+                    const cambio = m.stock_resultante - m.stock_anterior
+                    return (
+                      <tr key={m.id}>
+                        <td className="sutil sin-salto">{formatearFecha(m.fecha)}</td>
+                        <td>
+                          {nombreMovimiento(m)}
+                          {/* En compras y ventas el motivo repite el documento;
+                              en anulaciones y ajustes dice el porqué. */}
+                          {m.motivo && (m.tipo === 'ANULACION' || m.tipo === 'AJUSTE') && (
+                            <div className="sutil">{m.motivo}</div>
+                          )}
+                        </td>
+                        <td className="mono sin-salto">{m.documento || '—'}</td>
+                        <td
+                          className={cambio < 0 ? 'derecha mov-salida' : 'derecha mov-entrada'}
+                        >
+                          <strong>
+                            {cambio < 0 ? '−' : '+'}
+                            {Math.abs(cambio)}
+                          </strong>
+                        </td>
+                        <td className="centro sutil sin-salto">
+                          {m.stock_anterior} → {m.stock_resultante}
+                        </td>
+                        <td className="sutil">{m.usuario || '—'}</td>
+                      </tr>
+                    )
+                  })}
+
+                  {historial.movimientos?.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="celda-vacia">
+                        Este producto todavía no tiene movimientos.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {historial.movimientos?.length >= LIMITE_HISTORIAL && (
+              <p className="nota">
+                Se muestran los {LIMITE_HISTORIAL} movimientos más recientes.
+              </p>
+            )}
+
+            <div className="modal-pie">
+              <button className="btn btn-suave" onClick={() => setHistorial(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

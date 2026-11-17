@@ -91,6 +91,8 @@ export const api = {
   },
   siguienteSku: (categoriaId) =>
     pedir(`/productos/siguiente-sku?categoria_id=${categoriaId}`),
+  movimientosProducto: (id, limite) =>
+    pedir(`/productos/${id}/movimientos?limite=${limite}`),
   crearProducto: (datos) => pedir('/productos', { method: 'POST', ...cuerpo(datos) }),
   actualizarProducto: (id, datos) =>
     pedir(`/productos/${id}`, { method: 'PUT', ...cuerpo(datos) }),
