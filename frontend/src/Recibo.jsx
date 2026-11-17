@@ -23,17 +23,25 @@ function formatear(valor) {
  * componente sirve para el comprobante que ve el cajero al cobrar y para
  * reimprimir una venta vieja desde el admin.
  *
- * No usa colores ni fondos: las térmicas son monocromáticas y cualquier gris
- * sale como una mancha.
+ * No usa fondos: las térmicas son monocromáticas y cualquier gris sale como
+ * una mancha. El único color es el sello rojo de las ventas anuladas, que es
+ * semitransparente para que en blanco y negro quede gris y deje leer el ticket.
  */
 export default function Recibo({ venta, comercio, recibido = null }) {
   if (!venta) return null
 
   const cambio =
     recibido !== null && recibido !== '' ? Number(recibido) - Number(venta.total) : null
+  const anulada = venta.estado === 'ANULADA'
 
   return createPortal(
     <div className="recibo-print">
+      {anulada && (
+        <div className="rp-marca-agua" aria-hidden="true">
+          <span>ANULADA</span>
+        </div>
+      )}
+
       <div className="rp-centro">
         {comercio?.logo_url && (
           <img className="rp-logo" src={comercio.logo_url} alt="" />
@@ -78,7 +86,7 @@ export default function Recibo({ venta, comercio, recibido = null }) {
         </div>
       )}
 
-      {venta.estado === 'ANULADA' && (
+      {anulada && (
         <>
           <div className="rp-linea" />
           <div className="rp-centro rp-anulada">*** VENTA ANULADA ***</div>

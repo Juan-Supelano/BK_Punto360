@@ -736,6 +736,7 @@ tbody tr:hover {
 
   .recibo-print {
     display: block;
+    position: relative; /* referencia del sello de anulada */
     width: 72mm; /* 80 mm de papel menos los márgenes del cabezal */
     padding: 0;
     margin: 0;
@@ -816,6 +817,33 @@ tbody tr:hover {
   .rp-anulada {
     font-weight: 700;
     font-size: 13px;
+  }
+
+  /* Venta anulada: sello rojo encima de todo el recibo. Es semitransparente
+     para que se pueda leer lo de abajo; en blanco y negro sale gris. */
+  .rp-marca-agua {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .rp-marca-agua span {
+    transform: rotate(-30deg);
+    padding: 1.5mm 4mm;
+    border: 1.2mm solid rgba(200, 0, 0, 0.55);
+    border-radius: 2mm;
+    color: rgba(200, 0, 0, 0.55);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 3px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .rp-pie {
