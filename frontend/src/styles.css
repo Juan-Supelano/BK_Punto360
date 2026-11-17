@@ -722,22 +722,20 @@ tbody tr:hover {
 }
 
 @media print {
-  /* Se oculta todo y se vuelve visible solo el ticket. Es la forma de imprimir
-     una parte de la página sin abrir otra ventana ni usar un iframe. */
-  body * {
-    visibility: hidden;
+  /* El recibo se monta con un portal como hijo directo de <body>, fuera de la
+     app, y al imprimir todo lo demás sale con display: none. No sirve
+     visibility: hidden: la página seguiría ocupando su alto y el modal, que es
+     position: fixed, se repetiría en cada hoja (dos o tres copias del recibo). */
+  body > *:not(.recibo-print) {
+    display: none !important;
   }
 
-  .recibo-print,
-  .recibo-print * {
-    visibility: visible;
+  body {
+    background: #fff;
   }
 
   .recibo-print {
     display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
     width: 72mm; /* 80 mm de papel menos los márgenes del cabezal */
     padding: 0;
     margin: 0;
