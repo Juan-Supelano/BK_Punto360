@@ -139,12 +139,13 @@ Cuadre POS es un sistema pensado para llevar el control completo del punto de ve
 |---|---|
 | **Registro de ventas** | Cobrar productos en el mostrador: elige productos y cantidades, calcula el total, descuenta el stock y registra la venta como una sola transacción (si algo falla, no se guarda nada a medias). |
 | **Cálculo y desglose de IVA** | Cada venta y compra calcula automáticamente el subtotal, el IVA y el total por línea, soportando precios con IVA incluido o excluido, con redondeo comercial para que los valores siempre cuadren. |
-| **Comprobante de venta imprimible** | Genera un recibo/ticket (pensado para impresora térmica de 80 mm) con los datos del comercio, el detalle de productos, impuestos y el vuelto, útil como comprobante para el cliente. |
+| **Comprobante de venta imprimible** | Genera un recibo/ticket (pensado para impresora térmica de 80 mm) con los datos del comercio, el detalle de productos, impuestos y el vuelto, útil como comprobante para el cliente. Si la venta está anulada, sale con un sello rojo de ANULADA. |
 | **Numeración de ventas** | Cada venta recibe automáticamente un número consecutivo de comprobante, generado por la base de datos. |
 | **Anulación de ventas y compras** | Permite anular una venta o compra sin borrarla: el sistema devuelve el stock automáticamente y deja registrado el motivo de la anulación. |
-| **Registro de compras a proveedores** | Registrar la entrada de mercancía asociada a un proveedor y a su número de factura, actualizando el stock y el costo del producto. |
-| **Kardex de inventario** | Lleva un historial (movimiento por movimiento) de cada entrada, salida, venta, compra o anulación de stock, con el valor anterior y el resultante. |
-| **Gestión de clientes y proveedores** | Registrar, buscar, editar y desactivar clientes y proveedores, con validación de documento/NIT único. |
+| **Informe de ventas** | El ADMIN imprime las ventas entre dos fechas, con subtotal, IVA, total, anuladas y totales por forma de pago y por cajero. |
+| **Registro de compras a proveedores** | Registrar la entrada de mercancía asociada a un proveedor, con un número de factura consecutivo (`FC-000001`) que asigna el sistema, actualizando el stock y el costo del producto. |
+| **Kardex de inventario** | Lleva un historial (movimiento por movimiento) de cada entrada, salida, venta, compra o anulación de stock, con el valor anterior y el resultante. En *Productos*, un clic en un producto muestra su historial con el número de la venta o de la compra. |
+| **Gestión de clientes y proveedores** | Registrar, buscar, editar y desactivar clientes y proveedores, con validación de documento/NIT único. Desde *Vender* se puede registrar un cliente nuevo sin salir de la venta. |
 
 ### Usuarios y configuración del negocio
 
@@ -198,7 +199,7 @@ Mismo formulario, registrando un segundo producto de la misma categoría; el sis
 
 ![Registrar compra](docs/screenshots/06-registrar-compra.png)
 
-Formulario modal *Registrar compra*: se elige el proveedor y el número de factura, se marca si los costos ya incluyen IVA, y se agregan las líneas de productos comprados (cantidad y costo unitario). El sistema calcula subtotal, IVA y total, y al guardar suma el stock de cada producto.
+Formulario modal *Registrar compra*: se elige el proveedor (el número de factura lo asigna el sistema), se marca si los costos ya incluyen IVA, y se agregan las líneas de productos comprados (cantidad y costo unitario). El sistema calcula subtotal, IVA y total, y al guardar suma el stock de cada producto.
 
 **7. Historial de compras**
 
@@ -430,6 +431,7 @@ Base local: `http://localhost:8000`. La documentación interactiva está en `/do
 | GET | `/productos` | Sesión | Lista. Query: `categoria_id`, `buscar`, `solo_stock_bajo`, `incluir_inactivos` |
 | GET | `/productos/siguiente-sku?categoria_id=N` | Sesión | Vista previa del SKU que se asignaría (no lo reserva) |
 | GET | `/productos/{id}` | Sesión | Un producto |
+| GET | `/productos/{id}/movimientos` | Sesión | Kardex del producto, del más reciente al más antiguo, con el número de la venta o compra. Query: `limite` (por defecto 200) |
 | POST | `/productos` | Sesión | Crea. El SKU lo genera el backend con el prefijo de la categoría (`BEB-001`, `BEB-002`…) |
 | PUT | `/productos/{id}` | Sesión | Actualiza los campos enviados |
 | PATCH | `/productos/{id}/stock?cantidad=N` | Sesión | Ajuste manual: `N` positivo suma, negativo resta. Queda en el kardex |
@@ -466,16 +468,16 @@ Unidades de medida válidas: `UND`, `KG`, `LT`, `MT`, `CAJA`, `PAQ`.
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/compras` | Sesión | Lista. Query: `proveedor_id`, `estado` (`RECIBIDA`, `ANULADA`), `desde`, `hasta` |
+| GET | `/compras/siguiente-numero` | Sesión | Vista previa del número de factura que recibirá la próxima compra (no lo reserva) |
 | GET | `/compras/{id}` | Sesión | Compra con sus ítems |
-| POST | `/compras` | ADMIN | Registra la compra en una transacción: suma stock y escribe el kardex |
+| POST | `/compras` | ADMIN | Registra la compra en una transacción: asigna el número de factura, suma stock y escribe el kardex |
 | POST | `/compras/{id}/anular` | ADMIN | Anula y devuelve el stock. Cuerpo opcional: `motivo` |
 
-Cuerpo de `POST /compras`:
+Cuerpo de `POST /compras` (`numero_factura` es opcional: si no se envía, el backend asigna el consecutivo `FC-000001`, `FC-000002`…):
 
 ```json
 {
   "proveedor_id": 1,
-  "numero_factura": "FV-1001",
   "costo_incluye_iva": false,
   "items": [{ "producto_id": 3, "cantidad": 10, "costo_unitario": 2500 }]
 }
@@ -531,7 +533,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
 - Gestión completa de productos, categorías, clientes y proveedores.
 - Registro de ventas y compras como transacciones completas, con actualización de inventario.
-- Cálculo de IVA, comprobante de venta imprimible y kardex de movimientos.
+- Cálculo de IVA, comprobante de venta imprimible, kardex de movimientos e informe de ventas por periodo.
 - Autenticación con roles (ADMIN / CAJERO) y gestión de usuarios.
 - `Dockerfile` listo para contenedorizar el backend.
 
@@ -554,7 +556,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 - No existe una integración real de **facturación electrónica ante la DIAN**: solo hay campos preparados (prefijo de factura, resolución) para una futura integración.
 - El manejo de **caja** (apertura y cierre de turno) todavía no está implementado; existe un campo de referencia en las ventas, pero no se usa aún.
 - No incluye todavía versionado formal de base de datos (por ejemplo, Alembic); los cambios de esquema se administran con scripts SQL manuales.
-- No cuenta con reportes, tableros de indicadores ni funcionalidad de devoluciones.
+- Solo tiene un informe básico de ventas por periodo; no cuenta con tableros de indicadores ni funcionalidad de devoluciones.
 - No hay automatización de despliegue completo en la nube: existe un `Dockerfile` para el backend, pero falta una configuración lista para producción (frontend, base de datos, variables de entorno por entorno, etc.).
 - Al ser un proyecto académico, no ha sido probado a fondo en un entorno de producción real con múltiples usuarios simultáneos.
 
@@ -566,7 +568,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
 - Integración real de **facturación electrónica** con la DIAN (hoy solo existen los campos base: resolución y prefijo de factura).
 - Implementación del **manejo de caja** (apertura, cierre y cuadre de turno).
-- Módulo de **reportes** (ventas por periodo, productos más vendidos, valorización de inventario, etc.).
+- Más **reportes** (productos más vendidos, valorización de inventario, etc.); hoy existe el informe de ventas por periodo.
 - Módulo de **devoluciones** de productos.
 - Integración de **Alembic** para el versionado de la base de datos.
 - Automatización del despliegue completo (backend, frontend y base de datos) en **Cloud Run** u otro proveedor.
