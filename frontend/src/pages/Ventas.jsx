@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import InformeVentas from '../InformeVentas.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
 
 const fechaHora = new Intl.DateTimeFormat('es-CO', {
@@ -36,6 +37,7 @@ export default function Ventas() {
   const [filtroEstado, setFiltroEstado] = useState('')
 
   const [detalle, setDetalle] = useState(null)
+  const [informe, setInforme] = useState(false)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(true)
 
@@ -68,6 +70,20 @@ export default function Ventas() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  // El informe solo está montado mientras se imprime, para que no salga junto
+  // con un recibo la próxima vez que se reimprima una venta.
+  useEffect(() => {
+    if (!informe) return
+    const terminar = () => setInforme(false)
+    window.addEventListener('afterprint', terminar)
+    // Espera a que el informe esté en el DOM antes de abrir el diálogo.
+    const t = setTimeout(imprimir, 120)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('afterprint', terminar)
+    }
+  }, [informe])
 
   async function verDetalle(id) {
     try {
@@ -119,6 +135,16 @@ export default function Ventas() {
               : 'Las ventas que has registrado tú'}
           </p>
         </div>
+        {esAdmin && (
+          <button
+            className="btn btn-primario"
+            title="Imprime las ventas del rango de fechas y los filtros elegidos"
+            disabled={cargando || ventas.length === 0}
+            onClick={() => setInforme(true)}
+          >
+            Imprimir informe
+          </button>
+        )}
       </div>
 
       {resumen && (
@@ -357,6 +383,20 @@ export default function Ventas() {
           {/* Oculto en pantalla: es lo único que sale al imprimir. */}
           <Recibo venta={detalle} comercio={comercio} />
         </div>
+      )}
+
+      {informe && (
+        <InformeVentas
+          ventas={ventas}
+          desde={desde}
+          hasta={hasta}
+          cajero={
+            porCajero.find((c) => String(c.usuario_id) === filtroCajero)?.nombre || 'Todos'
+          }
+          estado={{ PAGADA: 'Pagadas', ANULADA: 'Anuladas' }[filtroEstado] || 'Todos'}
+          comercio={comercio}
+          usuario={usuario}
+        />
       )}
     </section>
   )
