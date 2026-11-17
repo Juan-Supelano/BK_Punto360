@@ -151,7 +151,7 @@ Cuadre POS es un sistema pensado para llevar el control completo del punto de ve
 
 | Funcionalidad | ¿Qué le permite hacer al usuario? |
 |---|---|
-| **Autenticación y roles de usuario** | Inicio de sesión con usuario y contraseña (token JWT). Existen dos roles: **ADMIN** (gestiona el negocio, usuarios y compras) y **CAJERO** (solo puede registrar ventas). |
+| **Autenticación y roles de usuario** | Inicio de sesión con usuario y contraseña (token JWT). Existen dos roles: **ADMIN** (gestiona el negocio, usuarios y compras) y **CAJERO** (solo puede registrar ventas). La sesión se cierra sola tras 30 minutos sin actividad en la página. |
 | **Gestión de usuarios** | El ADMIN puede crear, editar, desactivar y resetear la contraseña de otros usuarios del sistema. |
 | **Perfil y datos del comercio** | Cada usuario puede editar su propio perfil (nombre, foto), y el ADMIN puede configurar los datos del negocio (razón social, NIT, logo, resolución) que aparecen en el comprobante de venta. |
 
