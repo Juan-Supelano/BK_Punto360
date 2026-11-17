@@ -40,6 +40,7 @@ Las pruebas automáticas del backend (IVA, login, roles e inventario) corren en 
 | E2E-21 | — | ADMIN | Reimprimir una venta anulada | El recibo sale con el sello rojo ANULADA encima (gris en blanco y negro) | Pendiente | | |
 | E2E-22 | — | ADMIN | En Ventas, elegir un rango de fechas y pulsar Imprimir informe | El informe trae solo las ventas de ese rango, con totales por forma de pago y por cajero | Pendiente | | |
 | E2E-23 | — | CAJERO | En Vender, elegir "+ Añadir cliente…" y registrar un cliente | El cliente queda seleccionado en la venta sin salir de la pantalla | Pendiente | | |
+| E2E-24 | — | CAJERO | Iniciar sesión y dejar la página quieta 30 minutos | Vuelve al login con el aviso de sesión cerrada por inactividad | Pendiente | | |
 
 ## Bugs encontrados
 
