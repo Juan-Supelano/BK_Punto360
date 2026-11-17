@@ -123,6 +123,7 @@ export const api = {
     const cadena = p.toString()
     return pedir(cadena ? `/compras?${cadena}` : '/compras')
   },
+  siguienteNumeroCompra: () => pedir('/compras/siguiente-numero'),
   verCompra: (id) => pedir(`/compras/${id}`),
   crearCompra: (datos) => pedir('/compras', { method: 'POST', ...cuerpo(datos) }),
   anularCompra: (id, motivo) =>

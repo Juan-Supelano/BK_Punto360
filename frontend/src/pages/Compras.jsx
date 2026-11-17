@@ -26,7 +26,9 @@ export default function Compras() {
 
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [proveedorId, setProveedorId] = useState('')
-  const [numeroFactura, setNumeroFactura] = useState('')
+  // El número de factura lo asigna el backend (FC-000001, FC-000002...).
+  // numeroPrevio es solo la vista previa del que le va a tocar.
+  const [numeroPrevio, setNumeroPrevio] = useState('')
   const [lineas, setLineas] = useState([])
   // Sin marcar: el costo del proveedor es la base. Es lo más común entre
   // empresas, por eso arranca en false.
@@ -79,7 +81,11 @@ export default function Compras() {
       return
     }
     setProveedorId(String(proveedores[0].id))
-    setNumeroFactura('')
+    setNumeroPrevio('')
+    api
+      .siguienteNumeroCompra()
+      .then((r) => setNumeroPrevio(r.numero))
+      .catch(() => setNumeroPrevio(''))
     setCostoIncluyeIva(false)
     setLineas([{ producto_id: '', cantidad: '1', costo_unitario: '' }])
     setPanelAbierto(true)
@@ -155,7 +161,6 @@ export default function Compras() {
     try {
       await api.crearCompra({
         proveedor_id: Number(proveedorId),
-        numero_factura: numeroFactura.trim(),
         costo_incluye_iva: costoIncluyeIva,
         items,
       })
@@ -342,13 +347,12 @@ export default function Compras() {
               <label className="campo">
                 <span>Número de factura</span>
                 <input
-                  required
-                  maxLength={40}
                   className="mono-entrada"
-                  placeholder="FV-1024"
-                  value={numeroFactura}
-                  onChange={(e) => setNumeroFactura(e.target.value.toUpperCase())}
+                  readOnly
+                  tabIndex={-1}
+                  value={numeroPrevio || '—'}
                 />
+                <small className="sutil">Se asigna solo, en orden consecutivo.</small>
               </label>
             </div>
 
