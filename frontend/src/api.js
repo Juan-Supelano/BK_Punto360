@@ -91,6 +91,8 @@ export const api = {
   },
   siguienteSku: (categoriaId) =>
     pedir(`/productos/siguiente-sku?categoria_id=${categoriaId}`),
+  movimientosProducto: (id, limite) =>
+    pedir(`/productos/${id}/movimientos?limite=${limite}`),
   crearProducto: (datos) => pedir('/productos', { method: 'POST', ...cuerpo(datos) }),
   actualizarProducto: (id, datos) =>
     pedir(`/productos/${id}`, { method: 'PUT', ...cuerpo(datos) }),
@@ -123,6 +125,7 @@ export const api = {
     const cadena = p.toString()
     return pedir(cadena ? `/compras?${cadena}` : '/compras')
   },
+  siguienteNumeroCompra: () => pedir('/compras/siguiente-numero'),
   verCompra: (id) => pedir(`/compras/${id}`),
   crearCompra: (datos) => pedir('/compras', { method: 'POST', ...cuerpo(datos) }),
   anularCompra: (id, motivo) =>

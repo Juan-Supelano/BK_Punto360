@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, desglosarIva, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import ClienteRapido from '../ClienteRapido.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
 
 const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO']
+
+// Valor de la última opción del listado de clientes: no es un cliente, abre
+// el formulario de alta rápida.
+const NUEVO_CLIENTE = 'nuevo'
 
 // Quita tildes y pasa a minúscula: en el mostrador nadie escribe "Panadería"
 // con tilde, y el cajero no tiene por qué adivinar cómo quedó guardado.
@@ -34,6 +39,7 @@ export default function Vender() {
   const [error, setError] = useState('')
   const [cobrando, setCobrando] = useState(false)
   const [comprobante, setComprobante] = useState(null)
+  const [altaCliente, setAltaCliente] = useState(false)
 
   const buscador = useRef(null)
 
@@ -103,6 +109,23 @@ export default function Vender() {
 
   function quitar(productoId) {
     setCarrito((c) => c.filter((l) => l.producto.id !== productoId))
+  }
+
+  function elegirCliente(valor) {
+    if (valor === NUEVO_CLIENTE) {
+      setAltaCliente(true) // el select se queda con el cliente que tenía
+    } else {
+      setClienteId(valor)
+    }
+  }
+
+  // El cliente recién creado entra al listado (en orden) y queda elegido.
+  function clienteCreado(cliente) {
+    setClientes((lista) =>
+      [...lista, cliente].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    )
+    setClienteId(String(cliente.id))
+    setAltaCliente(false)
   }
 
   function limpiar() {
@@ -318,13 +341,14 @@ export default function Vender() {
           <div className="tarjeta">
             <label className="campo">
               <span>Cliente (opcional)</span>
-              <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+              <select value={clienteId} onChange={(e) => elegirCliente(e.target.value)}>
                 <option value="">Consumidor final</option>
                 {clientes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre} · {c.num_doc}
                   </option>
                 ))}
+                <option value={NUEVO_CLIENTE}>+ Añadir cliente…</option>
               </select>
             </label>
 
@@ -494,6 +518,10 @@ export default function Vender() {
             recibido={comprobante.recibido}
           />
         </div>
+      )}
+
+      {altaCliente && (
+        <ClienteRapido onCerrar={() => setAltaCliente(false)} onCreado={clienteCreado} />
       )}
     </section>
   )

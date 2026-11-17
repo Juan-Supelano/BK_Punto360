@@ -100,6 +100,10 @@ def resumen(
     anuladas_q = select(func.count(Venta.id)).where(Venta.estado == "ANULADA")
     if not quien.es_admin:
         anuladas_q = anuladas_q.where(Venta.usuario_id == quien.id)
+    if desde:
+        anuladas_q = anuladas_q.where(Venta.fecha >= datetime.combine(desde, time.min))
+    if hasta:
+        anuladas_q = anuladas_q.where(Venta.fecha <= datetime.combine(hasta, time.max))
 
     return {
         "ventas": cantidad,
