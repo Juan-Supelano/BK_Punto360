@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.producto import ProductoResumen
 from app.schemas.proveedor import ProveedorResumen
@@ -16,7 +16,14 @@ class CompraItemCrear(BaseModel):
 
 class CompraCrear(BaseModel):
     proveedor_id: int
-    numero_factura: str = Field(min_length=1, max_length=40)
+    numero_factura: str | None = Field(
+        default=None,
+        max_length=40,
+        description=(
+            "Opcional. Si no se envia, el backend asigna el consecutivo "
+            "FC-000001, FC-000002..."
+        ),
+    )
     costo_incluye_iva: bool = Field(
         default=False,
         description=(
@@ -26,6 +33,13 @@ class CompraCrear(BaseModel):
         ),
     )
     items: list[CompraItemCrear] = Field(min_length=1)
+
+    @field_validator("numero_factura")
+    @classmethod
+    def limpiar_factura(cls, valor: str | None) -> str | None:
+        """Mayusculas y sin espacios; vacio cuenta como no enviado."""
+        limpio = (valor or "").strip().upper()
+        return limpio or None
 
 
 class CompraAnular(BaseModel):
