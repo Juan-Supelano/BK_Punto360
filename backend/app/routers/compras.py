@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -28,6 +28,34 @@ router = APIRouter(
 )
 
 CENTAVO = Decimal("0.01")
+
+# Numero de factura de las compras: FC-000001, FC-000002... lo pone el backend.
+PREFIJO_COMPRA = "FC"
+# Llave del candado de PostgreSQL que reparte los consecutivos de uno en uno.
+# Cualquier entero sirve mientras ningun otro candado use el mismo.
+CANDADO_NUMERO_COMPRA = 360_001
+
+
+def _siguiente_numero(db: Session) -> str:
+    """Consecutivo de compras: FC-000001, FC-000002...
+
+    Se mira el mas alto que ya exista con ese prefijo, incluidas las compras
+    anuladas, para no repetir nunca un numero. Las facturas digitadas a mano
+    antes de este cambio (FV-1001...) no cuentan.
+    """
+    usados = db.scalars(
+        select(Compra.numero_factura).where(
+            Compra.numero_factura.like(f"{PREFIJO_COMPRA}-%")
+        )
+    ).all()
+
+    mayor = 0
+    for numero in usados:
+        cola = numero.rsplit("-", 1)[-1]
+        if cola.isdigit():
+            mayor = max(mayor, int(cola))
+
+    return f"{PREFIJO_COMPRA}-{mayor + 1:06d}"
 
 
 def _cargar(db: Session, compra_id: int) -> Compra:
@@ -68,6 +96,14 @@ def listar(
     return db.scalars(consulta).all()
 
 
+# Va ANTES de /{compra_id}: si no, FastAPI intenta leer "siguiente-numero"
+# como un id entero y responde 422.
+@router.get("/siguiente-numero")
+def siguiente_numero(db: Session = Depends(get_db)):
+    """Vista previa del numero que recibira la proxima compra. No lo reserva."""
+    return {"numero": _siguiente_numero(db)}
+
+
 @router.get("/{compra_id}", response_model=CompraLeer)
 def obtener(compra_id: int, db: Session = Depends(get_db)):
     return _cargar(db, compra_id)
@@ -91,17 +127,26 @@ def crear(
             status.HTTP_400_BAD_REQUEST, "El proveedor esta desactivado"
         )
 
-    factura = datos.numero_factura.strip().upper()
-    repetida = db.scalar(
-        select(Compra).where(
-            Compra.proveedor_id == proveedor.id, Compra.numero_factura == factura
+    if datos.numero_factura:
+        # Numero enviado a mano (por la API): se respeta si no esta repetido.
+        factura = datos.numero_factura
+        repetida = db.scalar(
+            select(Compra).where(
+                Compra.proveedor_id == proveedor.id, Compra.numero_factura == factura
+            )
         )
-    )
-    if repetida is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"La factura {factura} ya fue registrada para {proveedor.nombre}",
-        )
+        if repetida is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"La factura {factura} ya fue registrada para {proveedor.nombre}",
+            )
+    else:
+        # El UNIQUE de la base es por proveedor, asi que no frena a dos compras
+        # simultaneas de proveedores distintos con el mismo consecutivo. El
+        # candado hace esperar a la segunda hasta que la primera confirme, y
+        # se suelta solo al terminar la transaccion.
+        db.execute(select(func.pg_advisory_xact_lock(CANDADO_NUMERO_COMPRA)))
+        factura = _siguiente_numero(db)
 
     # Un producto no puede venir dos veces: se suman las cantidades antes.
     vistos: dict[int, int] = {}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../auth.jsx'
 
 export default function Login() {
-  const { entrar } = useAuth()
+  const { entrar, aviso } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verClave, setVerClave] = useState(false)
@@ -38,6 +38,7 @@ export default function Login() {
           <p>Punto de venta e inventario</p>
         </div>
 
+        {aviso && !error && <p className="aviso">{aviso}</p>}
         {error && <p className="aviso aviso-error">{error}</p>}
 
         <label className="campo">

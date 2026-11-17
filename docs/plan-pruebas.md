@@ -34,6 +34,13 @@ Las pruebas automáticas del backend (IVA, login, roles e inventario) corren en 
 | E2E-15 | HU-10 | ADMIN | Editar los datos de la empresa | El nombre nuevo se ve en la barra lateral | Pendiente | | |
 | E2E-16 | HU-16 | CAJERO | Usar Vender en una pantalla de 360 px | Se puede vender sin scroll horizontal | Pendiente | | |
 | E2E-17 | HU-02 | — | Abrir `/health` de la API | `{"estado": "ok", "base_datos": "ok"}` | Pendiente | | |
+| E2E-18 | — | ADMIN | Registrar dos compras sin digitar el número de factura | Reciben números consecutivos `FC-…` | Pendiente | | |
+| E2E-19 | — | ADMIN | En Productos, hacer clic en un producto que se compró y se vendió | El historial muestra la compra con su número `FC-…` y la venta con su número `F-…` | Pendiente | | |
+| E2E-20 | — | CAJERO | Imprimir el recibo desde Vender y desde Mis ventas | La vista de impresión trae una sola copia | Pendiente | | |
+| E2E-21 | — | ADMIN | Reimprimir una venta anulada | El recibo sale con el sello rojo ANULADA encima (gris en blanco y negro) | Pendiente | | |
+| E2E-22 | — | ADMIN | En Ventas, elegir un rango de fechas y pulsar Imprimir informe | El informe trae solo las ventas de ese rango, con totales por forma de pago y por cajero | Pendiente | | |
+| E2E-23 | — | CAJERO | En Vender, elegir "+ Añadir cliente…" y registrar un cliente | El cliente queda seleccionado en la venta sin salir de la pantalla | Pendiente | | |
+| E2E-24 | — | CAJERO | Iniciar sesión y dejar la página quieta 30 minutos | Vuelve al login con el aviso de sesión cerrada por inactividad | Pendiente | | |
 
 ## Bugs encontrados
 

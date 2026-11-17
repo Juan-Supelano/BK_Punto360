@@ -434,6 +434,23 @@ tbody tr:hover {
   opacity: 0.55;
 }
 
+.fila-clicable {
+  cursor: pointer;
+}
+
+.sin-salto {
+  white-space: nowrap;
+}
+
+/* Kardex: entradas en verde, salidas en rojo. */
+.mov-entrada {
+  color: var(--ok);
+}
+
+.mov-salida {
+  color: var(--peligro);
+}
+
 .acciones {
   white-space: nowrap;
 }
@@ -717,27 +734,28 @@ tbody tr:hover {
   margin: 6px 0 0;
 }
 
-.recibo-print {
+.recibo-print,
+.informe-print {
   display: none;
 }
 
 @media print {
-  /* Se oculta todo y se vuelve visible solo el ticket. Es la forma de imprimir
-     una parte de la página sin abrir otra ventana ni usar un iframe. */
-  body * {
-    visibility: hidden;
+  /* El recibo y el informe se montan con un portal como hijos directos de
+     <body>, fuera de la app, y al imprimir todo lo demás sale con
+     display: none. No sirve visibility: hidden: la página seguiría ocupando su
+     alto y el modal, que es position: fixed, se repetiría en cada hoja (dos o
+     tres copias del recibo). */
+  body > *:not(.recibo-print):not(.informe-print) {
+    display: none !important;
   }
 
-  .recibo-print,
-  .recibo-print * {
-    visibility: visible;
+  body {
+    background: #fff;
   }
 
   .recibo-print {
     display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: relative; /* referencia del sello de anulada */
     width: 72mm; /* 80 mm de papel menos los márgenes del cabezal */
     padding: 0;
     margin: 0;
@@ -820,8 +838,163 @@ tbody tr:hover {
     font-size: 13px;
   }
 
+  /* Venta anulada: sello rojo encima de todo el recibo. Es semitransparente
+     para que se pueda leer lo de abajo; en blanco y negro sale gris. */
+  .rp-marca-agua {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .rp-marca-agua span {
+    transform: rotate(-30deg);
+    padding: 1.5mm 4mm;
+    border: 1.2mm solid rgba(200, 0, 0, 0.55);
+    border-radius: 2mm;
+    color: rgba(200, 0, 0, 0.55);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 3px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .rp-pie {
     margin: 6px 0 3px;
+  }
+
+  /* --- Informe de ventas: hoja carta o A4 --------------------------------- */
+  /* El @page general es para el rollo de 80 mm; el informe usa su propia
+     página con márgenes normales. */
+  @page informe {
+    margin: 12mm 10mm;
+  }
+
+  .informe-print {
+    display: block;
+    page: informe;
+    color: #000;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .inf-cabeza {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #000;
+  }
+
+  .inf-comercio {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .inf-titulo {
+    text-align: right;
+  }
+
+  .inf-titulo h1 {
+    font-size: 18px;
+  }
+
+  .inf-filtros {
+    margin: 6px 0 10px;
+    color: #333;
+  }
+
+  .inf-resumen {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    border: 1px solid #999;
+    margin-bottom: 10px;
+  }
+
+  .inf-resumen > div {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 7px;
+    border-right: 1px solid #999;
+  }
+
+  .inf-resumen > div:last-child {
+    border-right: 0;
+  }
+
+  .inf-resumen span {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    color: #333;
+  }
+
+  .inf-resumen strong {
+    font-size: 12px;
+  }
+
+  .inf-grupos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 10px;
+  }
+
+  .inf-tabla {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .inf-tabla th,
+  .inf-tabla td {
+    border: 1px solid #999;
+    padding: 3px 5px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  /* La regla general de tablas le quita el borde a la última fila. */
+  .inf-tabla tr:last-child td {
+    border-bottom: 1px solid #999;
+  }
+
+  .inf-tabla th {
+    background: none;
+    color: #000;
+    font-size: 9.5px;
+    letter-spacing: 0;
+  }
+
+  .inf-tabla .inf-num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .inf-detalle tr {
+    break-inside: avoid;
+  }
+
+  .inf-anulada td {
+    color: #555;
+    text-decoration: line-through;
+  }
+
+  .inf-tabla .inf-total td {
+    font-weight: 700;
+    border-top: 2px solid #000;
+  }
+
+  .inf-pie {
+    margin-top: 8px;
+    font-size: 9.5px;
+    color: #333;
   }
 }
 
