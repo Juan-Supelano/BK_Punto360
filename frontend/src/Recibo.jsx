@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { pesos } from './api.js'
 
 const fechaLarga = new Intl.DateTimeFormat('es-CO', {
@@ -16,9 +17,11 @@ function formatear(valor) {
 /**
  * Ticket para impresora térmica de 80 mm.
  *
- * Vive oculto en la página y solo aparece al imprimir: el CSS de @media print
- * esconde todo lo demás. Así el mismo componente sirve para el comprobante que
- * ve el cajero al cobrar y para reimprimir una venta vieja desde el admin.
+ * Vive oculto en la página y solo aparece al imprimir. Se monta con un portal
+ * directo en <body>, fuera de la app, para que el CSS de @media print saque
+ * todo lo demás con display: none y salga una sola copia. Así el mismo
+ * componente sirve para el comprobante que ve el cajero al cobrar y para
+ * reimprimir una venta vieja desde el admin.
  *
  * No usa colores ni fondos: las térmicas son monocromáticas y cualquier gris
  * sale como una mancha.
@@ -29,7 +32,7 @@ export default function Recibo({ venta, comercio, recibido = null }) {
   const cambio =
     recibido !== null && recibido !== '' ? Number(recibido) - Number(venta.total) : null
 
-  return (
+  return createPortal(
     <div className="recibo-print">
       <div className="rp-centro">
         {comercio?.logo_url && (
@@ -160,7 +163,8 @@ export default function Recibo({ venta, comercio, recibido = null }) {
         <div className="rp-pie">Documento no válido como factura electrónica</div>
         <div>¡Gracias por su compra!</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
