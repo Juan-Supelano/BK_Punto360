@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,8 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import Categoria, MovimientoInventario, Producto, Usuario
+from app.models import Categoria, MovimientoInventario, Producto, Usuario, Venta
 from app.models.producto import UNIDADES
+from app.schemas.movimiento import MovimientoLeer
 from app.schemas.producto import ProductoActualizar, ProductoCrear, ProductoLeer
 from app.seguridad import requerir_password_actualizada, usuario_actual
 from app.texto import columna_plana, patron
@@ -65,6 +67,17 @@ def _siguiente_sku(db: Session, categoria: Categoria) -> str:
     return f"{prefijo}-{mayor + 1:03d}"
 
 
+# compras.py deja el numero de la compra en el motivo del kardex: "Compra
+# FC-000001 - Proveedor" y, al anularla, "Anulacion compra FC-000001: motivo".
+# movimiento_inventario no tiene columna compra_id, asi que se lee de ahi.
+_NUMERO_COMPRA = re.compile(r"^(?:Compra|Anulacion compra) (.+?)(?: - |: | \(|$)")
+
+
+def _numero_compra(motivo: str | None) -> str | None:
+    hallado = _NUMERO_COMPRA.match(motivo or "")
+    return hallado.group(1) if hallado else None
+
+
 @router.get("", response_model=list[ProductoLeer])
 def listar(
     categoria_id: int | None = None,
@@ -112,6 +125,51 @@ def siguiente_sku(categoria_id: int = Query(), db: Session = Depends(get_db)):
 @router.get("/{producto_id}", response_model=ProductoLeer)
 def obtener(producto_id: int, db: Session = Depends(get_db)):
     return _buscar(db, producto_id)
+
+
+@router.get("/{producto_id}/movimientos", response_model=list[MovimientoLeer])
+def movimientos(
+    producto_id: int,
+    limite: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    """Kardex del producto, del mas reciente al mas antiguo.
+
+    Cada fila trae el documento que movio el stock: el numero de la venta
+    (F-000001) o el de la compra (FC-000001). Los ajustes manuales no tienen.
+    """
+    _buscar(db, producto_id)
+    filas = db.execute(
+        select(MovimientoInventario, Venta.numero, Usuario.nombre)
+        .outerjoin(Venta, Venta.id == MovimientoInventario.venta_id)
+        .outerjoin(Usuario, Usuario.id == MovimientoInventario.usuario_id)
+        .where(MovimientoInventario.producto_id == producto_id)
+        .order_by(MovimientoInventario.fecha.desc(), MovimientoInventario.id.desc())
+        .limit(limite)
+    ).all()
+
+    resultado = []
+    for mov, numero_venta, nombre_usuario in filas:
+        if numero_venta:
+            origen, documento = "VENTA", numero_venta
+        else:
+            documento = _numero_compra(mov.motivo)
+            origen = "COMPRA" if documento else None
+        resultado.append(
+            MovimientoLeer(
+                id=mov.id,
+                fecha=mov.fecha,
+                tipo=mov.tipo,
+                cantidad=mov.cantidad,
+                stock_anterior=mov.stock_anterior,
+                stock_resultante=mov.stock_resultante,
+                motivo=mov.motivo,
+                usuario=nombre_usuario,
+                origen=origen,
+                documento=documento,
+            )
+        )
+    return resultado
 
 
 @router.post("", response_model=ProductoLeer, status_code=status.HTTP_201_CREATED)

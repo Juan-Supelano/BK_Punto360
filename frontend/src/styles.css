@@ -434,6 +434,23 @@ tbody tr:hover {
   opacity: 0.55;
 }
 
+.fila-clicable {
+  cursor: pointer;
+}
+
+.sin-salto {
+  white-space: nowrap;
+}
+
+/* Kardex: entradas en verde, salidas en rojo. */
+.mov-entrada {
+  color: var(--ok);
+}
+
+.mov-salida {
+  color: var(--peligro);
+}
+
 .acciones {
   white-space: nowrap;
 }
