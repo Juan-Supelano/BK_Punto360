@@ -1,0 +1,70 @@
+name: Imágenes
+
+# HU-19: construye las imágenes del backend y del frontend y las publica en
+# GitHub Container Registry (ghcr.io), de donde las descarga el clúster de
+# Kubernetes (k8s/03-api.yaml y k8s/04-web.yaml).
+#
+# Cada imagen sale con dos etiquetas:
+#   latest  la última publicada (es la que usan los manifiestos)
+#   <SHA>   el commit exacto, para saber qué versión corre o volver a una anterior
+#
+# El frontend se compila con VITE_API_URL=http://localhost:8000 porque en el
+# clúster local la API se abre con kubectl port-forward en ese puerto. Vite deja
+# esa URL fija en el build (ver frontend/Dockerfile, argumento API_URL_LOCAL).
+#
+# La primera vez que se publica, el dueño del repositorio debe volver públicos
+# los paquetes punto360-api y punto360-web (README, sección Kubernetes).
+
+on:
+  push:
+    branches: [desarrollo, main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/imagenes.yml"
+  workflow_dispatch:
+
+# El GITHUB_TOKEN del workflow alcanza para publicar en ghcr: no hace falta
+# crear ningún secreto.
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publicar:
+    name: Publicar ${{ matrix.imagen }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - imagen: punto360-api
+            carpeta: backend
+            argumentos: ""
+          - imagen: punto360-web
+            carpeta: frontend
+            argumentos: API_URL_LOCAL=http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Iniciar sesión en ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ghcr exige el nombre en minúsculas: juan-supelano, no Juan-Supelano.
+      - name: Construir y publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.carpeta }}
+          push: true
+          build-args: ${{ matrix.argumentos }}
+          tags: |
+            ghcr.io/juan-supelano/${{ matrix.imagen }}:latest
+            ghcr.io/juan-supelano/${{ matrix.imagen }}:${{ github.sha }}
+          # Enlaza el paquete con el repositorio en la página de GitHub.
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
