@@ -102,6 +102,7 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 - [Próximas mejoras](#próximas-mejoras)
 - [Instalación y ejecución](#instalación-y-ejecución)
 - [Despliegue en la nube (Google Cloud)](#despliegue-en-la-nube-google-cloud)
+- [Despliegue en Kubernetes (Docker Desktop)](#despliegue-en-kubernetes-docker-desktop)
 - [Errores, complicaciones y soluciones](#errores-complicaciones-y-soluciones)
 - [Estado del proyecto](#estado-del-proyecto)
 
@@ -674,6 +675,162 @@ La interfaz quedará disponible en `http://localhost:5173`. Inicia sesión con e
 7. **CORS**: se actualizó la variable `CORS_ORIGENES` del backend con la URL real del frontend ya desplegado (ver detalle en la siguiente sección).
 
 > Las URLs de Cloud Run generadas automáticamente (`https://<servicio>-<hash>.<region>.run.app`) son válidas para pruebas, pero no corresponden a un dominio propio del proyecto.
+
+---
+
+## Despliegue en Kubernetes (Docker Desktop)
+
+La aplicación completa también corre en un clúster local de Kubernetes, con Prometheus y Grafana dentro del mismo clúster.
+
+| Pieza | Dónde está | Qué hace |
+|---|---|---|
+| Imágenes | `.github/workflows/imagenes.yml` | Publica `ghcr.io/juan-supelano/punto360-api` y `punto360-web` (etiquetas `latest` y SHA del commit) |
+| Namespace | `k8s/00-namespace.yaml` | Agrupa todo en `punto360` |
+| ConfigMap | `k8s/01-configmap.yaml` | Configuración no sensible: `CORS_ORIGENES`, `JWT_MINUTOS`, `IA_MODELO` |
+| Secret | `k8s/secret.yaml` (se crea desde `k8s/secret.example.yaml`, nunca se sube) | `POSTGRES_PASSWORD`, `DATABASE_URL`, `JWT_SECRETO`, `IA_API_KEY` |
+| PostgreSQL | `k8s/02-postgres.yaml` | StatefulSet con volumen persistente; se inicializa con `database/schema.sql` y `seed.sql` (ConfigMap `db-init`) |
+| API | `k8s/03-api.yaml` | Deployment con 2 réplicas, readiness en `/listo`, liveness en `/salud`, requests/limits y Service |
+| Frontend | `k8s/04-web.yaml` | Deployment con nginx y Service |
+| Monitoreo | `monitoring/values.yaml` y `k8s/05-servicemonitor.yaml` | Chart kube-prometheus-stack (release y namespace `monitoreo`); Prometheus lee `/metrics` de la API |
+
+### Requisitos
+
+- Docker Desktop con Kubernetes activado (*Settings → Kubernetes → Enable Kubernetes*). Conviene darle a Docker al menos 4 GB de memoria.
+- `kubectl` (viene con Docker Desktop) y [Helm 3](https://helm.sh/docs/intro/install/).
+- Python 3 para el script de tráfico.
+
+Todos los comandos se ejecutan desde la raíz del repositorio.
+
+### 1. Imágenes en GitHub Container Registry
+
+El workflow **Imágenes** las publica en cada push a `desarrollo` o `main` que cambie `backend/` o `frontend/`. También se puede lanzar a mano en *Actions → Imágenes → Run workflow*. El frontend se compila con `VITE_API_URL=http://localhost:8000`, la dirección por la que se abre la API en el clúster local.
+
+La primera vez, el dueño del repositorio debe volver públicos los dos paquetes para que el clúster los descargue sin credenciales: en GitHub, *Packages* → `punto360-api` → *Package settings* → *Change visibility* → *Public*, y lo mismo con `punto360-web`.
+
+Para comprobar que las imágenes construyen en el equipo (opcional):
+
+```bash
+docker build -t ghcr.io/juan-supelano/punto360-api:latest backend
+docker build -t ghcr.io/juan-supelano/punto360-web:latest --build-arg API_URL_LOCAL=http://localhost:8000 frontend
+```
+
+### 2. Desplegar la aplicación
+
+```bash
+kubectl config use-context docker-desktop
+kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-configmap.yaml
+```
+
+Crear el Secret a partir de la plantilla (en Windows: `copy k8s\secret.example.yaml k8s\secret.yaml`) y poner los valores reales. `k8s/secret.yaml` está en `.gitignore`: nunca se sube. La `DATABASE_URL` debe usar la misma contraseña de `POSTGRES_PASSWORD` y el host `postgres`:
+
+```text
+postgresql+psycopg://postgres:<POSTGRES_PASSWORD>@postgres:5432/proyecto_nube
+```
+
+```bash
+cp k8s/secret.example.yaml k8s/secret.yaml
+kubectl apply -f k8s/secret.yaml
+kubectl create configmap db-init -n punto360 --from-file=01-schema.sql=database/schema.sql --from-file=02-seed.sql=database/seed.sql
+kubectl apply -f k8s/02-postgres.yaml
+kubectl rollout status statefulset/postgres -n punto360
+kubectl apply -f k8s/03-api.yaml -f k8s/04-web.yaml
+kubectl rollout status deployment/punto360-api -n punto360
+kubectl get pods,svc -n punto360
+```
+
+Deben quedar `postgres-0`, dos pods `punto360-api-…` y uno `punto360-web-…` en `Running` y `READY 1/1`. No uses `kubectl apply -f k8s/`: aplicaría la plantilla del Secret y el ServiceMonitor antes de instalar Prometheus.
+
+### 3. Abrir la aplicación
+
+En dos terminales distintas (cada una se queda abierta):
+
+```bash
+kubectl port-forward -n punto360 svc/punto360-api 8000:8080
+kubectl port-forward -n punto360 svc/punto360-web 8080:8080
+```
+
+- Frontend: http://localhost:8080
+- API: http://localhost:8000/docs
+
+Los usuarios de los datos semilla son `admin@cuadrepos.co` (ADMIN) y `cajero@cuadrepos.co` (CAJERO). Para ponerle una contraseña conocida a uno de ellos (cambia `TU_CLAVE`):
+
+```bash
+kubectl exec -n punto360 deploy/punto360-api -- python -c "from sqlalchemy import update; from app.database import SessionLocal; from app.models import Usuario; from app.seguridad import hashear; db = SessionLocal(); db.execute(update(Usuario).where(Usuario.email == 'admin@cuadrepos.co').values(password_hash=hashear('TU_CLAVE'), debe_cambiar_password=False)); db.commit(); print('Clave actualizada')"
+```
+
+### 4. Prometheus y Grafana dentro del clúster
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoreo prometheus-community/kube-prometheus-stack -n monitoreo --create-namespace -f monitoring/values.yaml
+kubectl get pods -n monitoreo
+kubectl apply -f k8s/05-servicemonitor.yaml
+kubectl create configmap dashboard-punto360 -n monitoreo --from-file=monitoring/dashboard-punto360.json
+kubectl label configmap dashboard-punto360 -n monitoreo grafana_dashboard=1
+```
+
+Prometheus (comprobar que lee la API):
+
+```bash
+kubectl port-forward -n monitoreo svc/monitoreo-kube-prometheus-prometheus 9090:9090
+```
+
+En http://localhost:9090 → *Status → Targets* debe aparecer `serviceMonitor/punto360/punto360-api/0` con las dos réplicas en `UP`.
+
+Grafana:
+
+```bash
+kubectl port-forward -n monitoreo svc/monitoreo-grafana 3000:80
+```
+
+Entrar a http://localhost:3000 con el usuario `admin`. La contraseña la genera el chart; para verla:
+
+```powershell
+# PowerShell
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String((kubectl get secret monitoreo-grafana -n monitoreo -o jsonpath="{.data.admin-password}")))
+```
+
+```bash
+# Git Bash, macOS o Linux
+kubectl get secret monitoreo-grafana -n monitoreo -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+El dashboard **Punto360** aparece en *Dashboards*. Usa la fuente de datos Prometheus que crea el chart (uid `prometheus`). Si se cambia el JSON, se vuelve a cargar con:
+
+```bash
+kubectl create configmap dashboard-punto360 -n monitoreo --from-file=monitoring/dashboard-punto360.json --dry-run=client -o yaml | kubectl apply -f -
+kubectl label configmap dashboard-punto360 -n monitoreo grafana_dashboard=1 --overwrite
+```
+
+### 5. Generar tráfico de prueba
+
+Con el port-forward de la API abierto (paso 3):
+
+```bash
+python scripts/trafico.py
+```
+
+En Grafana se ven subir el throughput, la latencia p95 y las peticiones en curso.
+
+### 6. Actualizar y apagar
+
+Traer la última imagen publicada:
+
+```bash
+kubectl rollout restart deployment/punto360-api deployment/punto360-web -n punto360
+```
+
+Borrar todo cuando no se use:
+
+```bash
+kubectl delete namespace punto360
+helm uninstall monitoreo -n monitoreo
+kubectl delete namespace monitoreo
+```
+
+Borrar el namespace `punto360` también borra el volumen de PostgreSQL: el siguiente despliegue vuelve a cargar `schema.sql` y `seed.sql`.
 
 ---
 
