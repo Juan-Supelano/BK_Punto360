@@ -1,0 +1,95 @@
+# HU-20: la API (FastAPI) con 2 réplicas. La imagen sale de ghcr.io (HU-19).
+#
+# - Configuración no sensible: ConfigMap punto360-config (01-configmap.yaml).
+# - Credenciales: Secret punto360-secret (plantilla en secret.example.yaml).
+# - Readiness en /listo: el pod recibe tráfico solo cuando llega a la base.
+# - Liveness en /salud: si la API deja de responder, Kubernetes reinicia el pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: punto360-api
+  namespace: punto360
+  labels:
+    app: punto360-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: punto360-api
+  template:
+    metadata:
+      labels:
+        app: punto360-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/juan-supelano/punto360-api:latest
+          # Con la etiqueta latest, Always hace que cada reinicio traiga la
+          # última imagen publicada.
+          imagePullPolicy: Always
+          ports:
+            # El Dockerfile del backend escucha en 8080 (variable PORT).
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: punto360-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: punto360-secret
+                  key: DATABASE_URL
+            - name: JWT_SECRETO
+              valueFrom:
+                secretKeyRef:
+                  name: punto360-secret
+                  key: JWT_SECRETO
+            # Clave del modelo de IA (HU-25). Opcional: sin ella la API arranca
+            # igual y solo el asistente responde 503.
+            - name: IA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: punto360-secret
+                  key: IA_API_KEY
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /listo
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /salud
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+# Service interno de la API. Desde el equipo se abre con:
+#   kubectl port-forward -n punto360 svc/punto360-api 8000:8080
+# El puerto se llama "http": así lo busca el ServiceMonitor (05-servicemonitor.yaml)
+# para leer /metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: punto360-api
+  namespace: punto360
+  labels:
+    app: punto360-api
+spec:
+  selector:
+    app: punto360-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

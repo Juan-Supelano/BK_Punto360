@@ -1,0 +1,6 @@
+# HU-20: todo Punto360 vive en su propio namespace, separado de lo que haya en
+# el clúster (y del namespace monitoreo de Prometheus y Grafana, HU-21).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: punto360

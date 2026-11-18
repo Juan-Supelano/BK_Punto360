@@ -1,0 +1,51 @@
+# HU-20: el frontend (build de Vite servido con nginx). La imagen sale de
+# ghcr.io (HU-19) y ya trae compilada la URL de la API: http://localhost:8000.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: punto360-web
+  namespace: punto360
+  labels:
+    app: punto360-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: punto360-web
+  template:
+    metadata:
+      labels:
+        app: punto360-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/juan-supelano/punto360-web:latest
+          imagePullPolicy: Always
+          ports:
+            # frontend/nginx.conf escucha en 8080.
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+---
+# Service interno del frontend. Desde el equipo se abre con:
+#   kubectl port-forward -n punto360 svc/punto360-web 8080:8080
+apiVersion: v1
+kind: Service
+metadata:
+  name: punto360-web
+  namespace: punto360
+  labels:
+    app: punto360-web
+spec:
+  selector:
+    app: punto360-web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
