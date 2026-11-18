@@ -1,0 +1,16 @@
+# HU-20: configuración NO sensible de la API. Se inyecta como variables de
+# entorno (envFrom en 03-api.yaml) y la lee backend/app/config.py.
+# Las credenciales van aparte, en el Secret punto360-secret
+# (plantilla en k8s/secret.example.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: punto360-config
+  namespace: punto360
+data:
+  # El frontend se abre en http://localhost:8080 (kubectl port-forward).
+  CORS_ORIGENES: "http://localhost:8080"
+  # Duración del token de sesión en minutos: 480 = un turno de caja.
+  JWT_MINUTOS: "480"
+  # Modelo de lenguaje del asistente de inventario (HU-25).
+  IA_MODELO: "gemini-2.5-flash"
