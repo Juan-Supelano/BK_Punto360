@@ -23,6 +23,7 @@ from app.routers import (
     clientes,
     compras,
     perfil,
+    prediccion,
     productos,
     proveedores,
     usuarios,
@@ -67,6 +68,7 @@ app.include_router(clientes.router)
 app.include_router(ventas.router)
 app.include_router(perfil.router)
 app.include_router(usuarios.router)
+app.include_router(prediccion.router)
 
 
 @app.get("/", tags=["Estado"])
@@ -78,3 +80,4 @@ def raiz():
 def salud():
     """Endpoint para el health check de Cloud Run."""
     return {"estado": "ok"}
+
