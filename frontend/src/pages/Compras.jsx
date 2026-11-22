@@ -3,6 +3,7 @@ import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import BuscadorProducto from '../BuscadorProducto.jsx'
 import ProductoRapido from '../ProductoRapido.jsx'
+import { pareceCodigo } from '../texto.js'
 
 const fechaCorta = new Intl.DateTimeFormat('es-CO', {
   day: '2-digit',
@@ -554,7 +555,9 @@ export default function Compras() {
       {/* Fuera del formulario de la compra: un <form> no puede ir dentro de otro. */}
       {altaProducto && (
         <ProductoRapido
-          nombreInicial={altaProducto.texto}
+          // Si lo escrito es un código escaneado, va al campo del código, no al nombre.
+          nombreInicial={pareceCodigo(altaProducto.texto) ? '' : altaProducto.texto}
+          codigoInicial={pareceCodigo(altaProducto.texto) ? altaProducto.texto : ''}
           onCerrar={() => setAltaProducto(null)}
           onListo={productoListo}
         />

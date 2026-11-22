@@ -73,11 +73,30 @@ def _siguiente_sku(db: Session, categoria: Categoria) -> str:
 _NUMERO_COMPRA = re.compile(r"^(?:Compra|Anulacion compra) (.+?)(?: - |: | \(|$)")
 
 
+def validar_codigo_libre(
+    db: Session, codigo: str | None, excepto_id: int | None = None
+) -> None:
+    """Un codigo de barras identifica un solo producto. Si ya lo tiene otro,
+    el mensaje dice cual, para que se pueda revisar."""
+    if not codigo:
+        return
+    consulta = select(Producto).where(Producto.codigo_barras == codigo)
+    if excepto_id is not None:
+        consulta = consulta.where(Producto.id != excepto_id)
+    otro = db.scalar(consulta)
+    if otro is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Ese codigo de barras ya lo tiene {otro.nombre} ({otro.sku})",
+        )
+
+
 def nuevo_producto(db: Session, campos: dict, iva_pct: Decimal) -> Producto:
     """Producto listo para agregar a la sesion, con su SKU y el IVA del
     comercio. Lo usan este router y el alta desde una compra."""
     categoria = _buscar_categoria(db, campos["categoria_id"])
     _validar_unidad(campos.get("unidad_medida"))
+    validar_codigo_libre(db, campos.get("codigo_barras"))
     return Producto(
         **campos, iva_pct=iva_pct, sku=_siguiente_sku(db, categoria), activo=True
     )
@@ -106,12 +125,14 @@ def listar(
     if categoria_id is not None:
         consulta = consulta.where(Producto.categoria_id == categoria_id)
     if buscar:
-        # Busca ignorando tildes: "panaderia" encuentra "Panadería".
+        # Busca ignorando tildes: "panaderia" encuentra "Panadería". El codigo
+        # de barras tambien cuenta, aunque no se muestre en la tabla.
         aguja = patron(buscar)
         consulta = consulta.where(
             or_(
                 columna_plana(Producto.nombre).like(aguja),
                 columna_plana(Producto.sku).like(aguja),
+                Producto.codigo_barras.like(f"%{buscar.strip()}%"),
             )
         )
     if solo_stock_bajo:
@@ -234,6 +255,8 @@ def actualizar(
         # estar impreso en etiquetas o usado por un proveedor.
     if "unidad_medida" in cambios:
         _validar_unidad(cambios["unidad_medida"])
+    if cambios.get("codigo_barras"):
+        validar_codigo_libre(db, cambios["codigo_barras"], excepto_id=producto.id)
 
     for campo, valor in cambios.items():
         setattr(producto, campo, valor)

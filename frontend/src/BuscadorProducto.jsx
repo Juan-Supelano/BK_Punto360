@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { pesos } from './api.js'
-import { buscarProductos } from './texto.js'
+import { buscarProductos, pareceCodigo } from './texto.js'
 
 /**
  * Campo para elegir un producto escribiendo su nombre o SKU (compras).
@@ -113,7 +113,9 @@ export default function BuscadorProducto({
                 onMouseEnter={() => setActivo(coincidencias.length)}
                 onClick={() => elegir(coincidencias.length)}
               >
-                + Crear producto “{texto.trim()}”
+                {pareceCodigo(texto)
+                  ? `+ Crear producto con el código ${texto.trim()}`
+                  : `+ Crear producto “${texto.trim()}”`}
               </button>
             </li>
           )}

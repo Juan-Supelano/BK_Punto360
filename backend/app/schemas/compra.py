@@ -14,10 +14,17 @@ class ProductoNuevoCompra(BaseModel):
     comercio."""
 
     nombre: str = Field(min_length=1, max_length=150)
+    codigo_barras: str | None = Field(default=None, max_length=50)
     categoria_id: int
     precio_venta: Decimal = Field(ge=0)
     stock_minimo: int = Field(default=0, ge=0)
     unidad_medida: str = Field(default="UND")
+
+    @field_validator("codigo_barras")
+    @classmethod
+    def limpiar_codigo(cls, valor: str | None) -> str | None:
+        limpio = (valor or "").strip()
+        return limpio or None
 
 
 class CompraItemCrear(BaseModel):

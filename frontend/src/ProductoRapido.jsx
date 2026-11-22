@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
-import { mayusculaInicial } from './texto.js'
+import { mayusculaInicial, sinEnviarConEnter } from './texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
 
@@ -13,11 +13,17 @@ const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
  *
  * No pide costo, stock ni IVA: salen de la línea de la compra.
  */
-export default function ProductoRapido({ nombreInicial = '', onCerrar, onListo }) {
+export default function ProductoRapido({
+  nombreInicial = '',
+  codigoInicial = '',
+  onCerrar,
+  onListo,
+}) {
   const [categorias, setCategorias] = useState([])
   const [formulario, setFormulario] = useState({
     categoria_id: '',
     nombre: mayusculaInicial(nombreInicial.trim()),
+    codigo_barras: codigoInicial.trim(),
     precio_venta: '',
     stock_minimo: '',
     unidad_medida: 'UND',
@@ -47,6 +53,7 @@ export default function ProductoRapido({ nombreInicial = '', onCerrar, onListo }
     evento.preventDefault()
     onListo({
       nombre: formulario.nombre.trim(),
+      codigo_barras: formulario.codigo_barras.trim() || null,
       categoria_id: Number(formulario.categoria_id),
       precio_venta: Number(formulario.precio_venta),
       stock_minimo: Number(formulario.stock_minimo || 0),
@@ -56,7 +63,12 @@ export default function ProductoRapido({ nombreInicial = '', onCerrar, onListo }
 
   return (
     <div className="fondo-modal fondo-encima" onClick={onCerrar}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={listo}>
+      <form
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={listo}
+        onKeyDown={sinEnviarConEnter}
+      >
         <h3>Nuevo producto</h3>
 
         {error && <p className="aviso aviso-error">{error}</p>}
@@ -87,6 +99,11 @@ export default function ProductoRapido({ nombreInicial = '', onCerrar, onListo }
           <label className="campo campo-completo">
             <span>Nombre</span>
             <input required autoFocus maxLength={150} {...campo('nombre', mayusculaInicial)} />
+          </label>
+
+          <label className="campo campo-completo">
+            <span>Código de barras (opcional)</span>
+            <input className="mono-entrada" maxLength={50} {...campo('codigo_barras')} />
           </label>
 
           <label className="campo">
