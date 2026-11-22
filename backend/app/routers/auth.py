@@ -70,8 +70,18 @@ def actualizar_comercio(
     if comercio is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No hay datos de la empresa")
 
-    for campo, valor in datos.model_dump(exclude_unset=True).items():
+    cambios = datos.model_dump(exclude_unset=True)
+    # Estos dos no admiten vacio: si llegan en null se dejan como estaban.
+    for obligatorio in ("iva_pct", "precio_incluye_iva"):
+        if cambios.get(obligatorio, 0) is None:
+            cambios.pop(obligatorio)
+
+    for campo, valor in cambios.items():
         setattr(comercio, campo, valor)
+
+    # iva_pct es el IVA POR DEFECTO: lo toman los productos nuevos y las
+    # lineas de compra de productos nuevos. No se copia a los productos que ya
+    # existen, porque cada uno guarda el suyo (no todos pagan el 19 %).
 
     db.commit()
     db.refresh(comercio)

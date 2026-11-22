@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api, desglosarIva, pesos } from '../api.js'
+import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import BuscadorProducto from '../BuscadorProducto.jsx'
 import ProductoRapido from '../ProductoRapido.jsx'
@@ -15,9 +15,19 @@ function formatearFecha(valor) {
   return Number.isNaN(d.getTime()) ? '—' : fechaCorta.format(d)
 }
 
+const lineaVacia = () => ({
+  producto_id: '',
+  nuevo: null,
+  cantidad: '1',
+  costo_unitario: '',
+  iva_pct: '',
+})
+
 export default function Compras() {
   const { usuario } = useAuth()
   const esAdmin = usuario?.rol === 'ADMIN'
+  // IVA único del comercio y valor por defecto de la casilla (Mi empresa).
+  const iva = ivaDelComercio(usuario?.comercio)
 
   const [compras, setCompras] = useState([])
   const [proveedores, setProveedores] = useState([])
@@ -32,9 +42,13 @@ export default function Compras() {
   // numeroPrevio es solo la vista previa del que le va a tocar.
   const [numeroPrevio, setNumeroPrevio] = useState('')
   const [lineas, setLineas] = useState([])
-  // Sin marcar: el costo del proveedor es la base. Es lo más común entre
-  // empresas, por eso arranca en false.
-  const [costoIncluyeIva, setCostoIncluyeIva] = useState(false)
+  // Arranca como lo dejó el ADMIN en Mi empresa; se puede cambiar solo para
+  // esta compra.
+  const [costoIncluyeIva, setCostoIncluyeIva] = useState(iva.incluyeIva)
+
+  // IVA de una línea: el escrito; si está vacío, el IVA por defecto de Mi empresa.
+  const ivaDeLinea = (linea) =>
+    linea.iva_pct === '' || linea.iva_pct == null ? iva.ivaPct : Number(linea.iva_pct)
 
   // Alta rápida de producto desde una línea: { indice, texto } o null.
   const [altaProducto, setAltaProducto] = useState(null)
@@ -91,8 +105,8 @@ export default function Compras() {
       .siguienteNumeroCompra()
       .then((r) => setNumeroPrevio(r.numero))
       .catch(() => setNumeroPrevio(''))
-    setCostoIncluyeIva(false)
-    setLineas([{ producto_id: '', cantidad: '1', costo_unitario: '' }])
+    setCostoIncluyeIva(iva.incluyeIva)
+    setLineas([lineaVacia()])
     setPanelAbierto(true)
     setError('')
   }
@@ -103,7 +117,7 @@ export default function Compras() {
   }
 
   function agregarLinea() {
-    setLineas((l) => [...l, { producto_id: '', cantidad: '1', costo_unitario: '' }])
+    setLineas((l) => [...l, lineaVacia()])
   }
 
   function quitarLinea(indice) {
@@ -115,11 +129,18 @@ export default function Compras() {
       l.map((linea, i) => {
         if (i !== indice) return linea
         const actualizada = { ...linea, [campo]: valor }
-        // Al elegir producto, propone su costo actual como punto de partida.
+        // Al elegir producto: toma su IVA y propone su último costo como punto
+        // de partida (con el IVA sumado si los costos de la factura lo traen).
         if (campo === 'producto_id') {
+          actualizada.nuevo = null
           const p = productos.find((x) => String(x.id) === String(valor))
-          if (p && !linea.costo_unitario) {
-            actualizada.costo_unitario = String(p.costo)
+          if (p) {
+            actualizada.iva_pct = String(Number(p.iva_pct))
+            if (!linea.costo_unitario) {
+              const costo = Number(p.costo)
+              const conIva = costoIncluyeIva ? costo * (1 + Number(p.iva_pct) / 100) : costo
+              actualizada.costo_unitario = String(Math.round(conIva * 100) / 100)
+            }
           }
         }
         return actualizada
@@ -127,20 +148,18 @@ export default function Compras() {
     )
   }
 
-  // El producto recién creado entra al listado y queda elegido en su línea,
-  // con su costo como punto de partida.
-  function productoCreado(producto) {
-    setProductos((lista) =>
-      [...lista, producto].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    )
+  // El producto nuevo queda en su línea, pendiente: el backend lo crea junto
+  // con la compra. Si la compra no se registra, no queda guardado.
+  function productoListo(datosNuevo) {
     const { indice } = altaProducto
     setLineas((l) =>
       l.map((linea, i) =>
         i === indice
           ? {
               ...linea,
-              producto_id: String(producto.id),
-              costo_unitario: linea.costo_unitario || String(producto.costo),
+              producto_id: '',
+              nuevo: datosNuevo,
+              iva_pct: linea.iva_pct || String(iva.ivaPct),
             }
           : linea,
       ),
@@ -150,32 +169,32 @@ export default function Compras() {
 
   const totales = useMemo(() => {
     let subtotal = 0
-    let iva = 0
+    let totalIva = 0
     let total = 0
     for (const linea of lineas) {
-      const producto = productos.find((p) => String(p.id) === String(linea.producto_id))
-      if (!producto) continue
+      if (!linea.producto_id && !linea.nuevo) continue
       const d = desglosarIva(
         linea.costo_unitario || 0,
         linea.cantidad || 0,
-        producto.iva_pct,
+        ivaDeLinea(linea),
         costoIncluyeIva,
       )
       subtotal += d.subtotal
-      iva += d.iva
+      totalIva += d.iva
       total += d.total
     }
-    return { subtotal, iva, total }
-  }, [lineas, productos, costoIncluyeIva])
+    return { subtotal, iva: totalIva, total }
+  }, [lineas, costoIncluyeIva, iva.ivaPct])
 
   async function guardar(evento) {
     evento.preventDefault()
     const items = lineas
-      .filter((l) => l.producto_id && Number(l.cantidad) > 0)
+      .filter((l) => (l.producto_id || l.nuevo) && Number(l.cantidad) > 0)
       .map((l) => ({
-        producto_id: Number(l.producto_id),
+        ...(l.nuevo ? { producto_nuevo: l.nuevo } : { producto_id: Number(l.producto_id) }),
         cantidad: Number(l.cantidad),
         costo_unitario: Number(l.costo_unitario || 0),
+        iva_pct: ivaDeLinea(l),
       }))
 
     if (items.length === 0) {
@@ -412,6 +431,7 @@ export default function Compras() {
                     <th>Producto</th>
                     <th className="centro">Cantidad</th>
                     <th className="derecha">Costo unitario</th>
+                    <th className="centro">IVA %</th>
                     <th className="derecha">Subtotal</th>
                     <th></th>
                   </tr>
@@ -421,28 +441,33 @@ export default function Compras() {
                     const producto = productos.find(
                       (p) => String(p.id) === String(linea.producto_id),
                     )
-                    const sub = producto
-                      ? desglosarIva(
-                          linea.costo_unitario || 0,
-                          linea.cantidad || 0,
-                          producto.iva_pct,
-                          costoIncluyeIva,
-                        ).total
-                      : 0
+                    const sub =
+                      producto || linea.nuevo
+                        ? desglosarIva(
+                            linea.costo_unitario || 0,
+                            linea.cantidad || 0,
+                            ivaDeLinea(linea),
+                            costoIncluyeIva,
+                          ).total
+                        : 0
                     return (
                       <tr key={i}>
                         <td>
                           <BuscadorProducto
                             productos={productos}
                             productoId={linea.producto_id}
+                            etiquetaNuevo={linea.nuevo ? `${linea.nuevo.nombre} · nuevo` : ''}
                             onElegir={(p) => cambiarLinea(i, 'producto_id', String(p.id))}
                             onCrear={(texto) => setAltaProducto({ indice: i, texto })}
                           />
                           {producto && (
                             <small className="sutil">
                               Stock actual: {producto.stock_actual} {producto.unidad_medida}
-                              {' · IVA '}
-                              {Number(producto.iva_pct)}%
+                            </small>
+                          )}
+                          {linea.nuevo && (
+                            <small className="sutil">
+                              Producto nuevo: se crea al registrar la compra.
                             </small>
                           )}
                         </td>
@@ -464,6 +489,19 @@ export default function Compras() {
                             onChange={(e) =>
                               cambiarLinea(i, 'costo_unitario', e.target.value)
                             }
+                          />
+                        </td>
+                        <td className="centro">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            className="entrada-corta"
+                            title="IVA de este producto. Queda guardado en el producto para las ventas."
+                            placeholder={String(iva.ivaPct)}
+                            value={linea.iva_pct}
+                            onChange={(e) => cambiarLinea(i, 'iva_pct', e.target.value)}
                           />
                         </td>
                         <td className="derecha">{pesos.format(sub)}</td>
@@ -499,10 +537,6 @@ export default function Compras() {
                   <strong>{pesos.format(totales.total)}</strong>
                 </div>
               </div>
-              <p className="nota">
-                Los totales definitivos los calcula el backend con el IVA guardado en
-                cada producto. Esto de arriba es una estimación en pantalla.
-              </p>
             </div>
 
             <div className="modal-pie">
@@ -522,7 +556,7 @@ export default function Compras() {
         <ProductoRapido
           nombreInicial={altaProducto.texto}
           onCerrar={() => setAltaProducto(null)}
-          onCreado={productoCreado}
+          onListo={productoListo}
         />
       )}
 
@@ -551,6 +585,7 @@ export default function Compras() {
                     <th>Producto</th>
                     <th className="centro">Cantidad</th>
                     <th className="derecha">Costo</th>
+                    <th className="centro">IVA</th>
                     <th className="derecha">Subtotal</th>
                   </tr>
                 </thead>
@@ -563,6 +598,9 @@ export default function Compras() {
                         {Number(it.cantidad)} {it.producto.unidad_medida}
                       </td>
                       <td className="derecha">{pesos.format(Number(it.costo_unitario))}</td>
+                      <td className="centro">
+                        {it.iva_pct != null ? `${Number(it.iva_pct)}%` : '—'}
+                      </td>
                       <td className="derecha">{pesos.format(Number(it.subtotal_linea))}</td>
                     </tr>
                   ))}

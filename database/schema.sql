@@ -307,6 +307,7 @@ CREATE TABLE public.compra_item (
     cantidad numeric(10,3) NOT NULL,
     costo_unitario numeric(12,2) NOT NULL,
     subtotal_linea numeric(12,2) NOT NULL,
+    iva_pct numeric(5,2),
     CONSTRAINT ck_compra_item_cantidad CHECK ((cantidad > (0)::numeric)),
     CONSTRAINT ck_compra_item_costo CHECK ((costo_unitario >= (0)::numeric))
 );
@@ -367,7 +368,10 @@ CREATE TABLE public.configuracion_comercio (
     logo_url character varying(500),
     email character varying(120),
     ciudad character varying(80),
-    CONSTRAINT ck_config_fila_unica CHECK ((id = 1))
+    iva_pct numeric(5,2) DEFAULT 19 NOT NULL,
+    precio_incluye_iva boolean DEFAULT true NOT NULL,
+    CONSTRAINT ck_config_fila_unica CHECK ((id = 1)),
+    CONSTRAINT ck_config_iva CHECK (((iva_pct >= (0)::numeric) AND (iva_pct <= (100)::numeric)))
 );
 
 

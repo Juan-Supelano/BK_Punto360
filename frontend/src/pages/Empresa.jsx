@@ -36,6 +36,11 @@ export default function Empresa() {
       const cambios = Object.fromEntries(
         CAMPOS.map(([clave]) => [clave, datos[clave] || null]),
       )
+      // Configuración del IVA (solo la ve y la guarda el ADMIN).
+      if (datos.iva_pct !== undefined) {
+        cambios.iva_pct = Number(datos.iva_pct)
+        cambios.precio_incluye_iva = Boolean(datos.precio_incluye_iva)
+      }
       const actualizado = await api.actualizarComercio(cambios)
       setDatos(actualizado)
       refrescarComercio(actualizado)
@@ -81,6 +86,40 @@ export default function Empresa() {
               />
             </label>
           ))}
+
+          {esAdmin && datos.iva_pct !== undefined && (
+            <div className="campo-completo caja-iva">
+              <strong>IVA</strong>
+              <div className="iva-empresa">
+                <label className="campo">
+                  <span>IVA por defecto (%) *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    required
+                    value={datos.iva_pct}
+                    onChange={(e) => setDatos({ ...datos, iva_pct: e.target.value })}
+                  />
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(datos.precio_incluye_iva)}
+                    onChange={(e) => setDatos({ ...datos, precio_incluye_iva: e.target.checked })}
+                  />
+                  Los precios y costos ya incluyen IVA
+                </label>
+              </div>
+              <p className="sutil">
+                Es el IVA que toman los productos nuevos. Cada producto guarda el suyo, que se
+                ajusta en cada compra y es el que se cobra al vender. La casilla es la opción que
+                viene marcada en Vender y en Compras; allí se puede cambiar solo para una venta o
+                compra.
+              </p>
+            </div>
+          )}
 
           {esAdmin && (
             <div className="modal-pie campo-completo">

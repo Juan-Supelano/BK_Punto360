@@ -23,8 +23,8 @@ const VISTAS = [
   { clave: 'prediccion', titulo: 'Informe predictivo', icono: '↗', rol: 'ADMIN' },
   { clave: 'productos', titulo: 'Productos', icono: '▦', rol: null },
   { clave: 'categorias', titulo: 'Categorías', icono: '☰', rol: null },
-  { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
-  { clave: 'compras', titulo: 'Compras', icono: '↧', rol: null },
+  { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: 'ADMIN' },
+  { clave: 'compras', titulo: 'Compras', icono: '↧', rol: 'ADMIN' },
   { clave: 'clientes', titulo: 'Clientes', icono: '☻', rol: null },
   { clave: 'usuarios', titulo: 'Usuarios', icono: '⨁', rol: 'ADMIN' },
   { clave: 'perfil', titulo: 'Mi perfil', icono: '☺', rol: null },
@@ -146,8 +146,8 @@ export default function App() {
         {activa === 'prediccion' && esAdmin && <InformePredictivo />}
         {activa === 'productos' && <Productos />}
         {activa === 'categorias' && <Categorias />}
-        {activa === 'proveedores' && <Proveedores />}
-        {activa === 'compras' && <Compras />}
+        {activa === 'proveedores' && esAdmin && <Proveedores />}
+        {activa === 'compras' && esAdmin && <Compras />}
         {activa === 'clientes' && <Clientes />}
         {activa === 'usuarios' && esAdmin && <Usuarios />}
         {activa === 'perfil' && <Perfil />}

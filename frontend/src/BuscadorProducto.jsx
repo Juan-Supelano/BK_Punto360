@@ -9,13 +9,20 @@ import { buscarProductos } from './texto.js'
  * coincide con ningún producto, la última opción (y la única) es crearlo:
  * llama a onCrear con el texto para abrir el alta rápida.
  */
-export default function BuscadorProducto({ productos, productoId, onElegir, onCrear }) {
+export default function BuscadorProducto({
+  productos,
+  productoId,
+  etiquetaNuevo = '',
+  onElegir,
+  onCrear,
+}) {
   const [texto, setTexto] = useState('')
   const [editando, setEditando] = useState(false)
   const [activo, setActivo] = useState(0)
 
   const elegido = productos.find((p) => String(p.id) === String(productoId))
-  const etiqueta = elegido ? `${elegido.nombre} · ${elegido.sku}` : ''
+  // etiquetaNuevo: producto que todavía no existe y se crea con la compra.
+  const etiqueta = elegido ? `${elegido.nombre} · ${elegido.sku}` : etiquetaNuevo
 
   const coincidencias = editando ? buscarProductos(productos, texto) : []
   const ofrecerCrear = editando && texto.trim() !== '' && coincidencias.length === 0

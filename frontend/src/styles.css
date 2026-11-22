@@ -677,6 +677,23 @@ tbody tr:hover {
   border-bottom: 0;
 }
 
+/* Mi empresa: porcentaje de IVA y casilla de precios con IVA. */
+.iva-empresa {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.iva-empresa .campo {
+  width: 160px;
+}
+
+.iva-empresa .check {
+  padding-bottom: 10px;
+}
+
 /* Alta rápida abierta encima de otro modal (por ejemplo, la compra). */
 .fondo-encima {
   z-index: 30;

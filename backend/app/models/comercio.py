@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import Boolean, DateTime, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -29,6 +30,12 @@ class Comercio(Base):
     prefijo_factura: Mapped[str] = mapped_column(String(5), nullable=False)
     resolucion_dian: Mapped[str | None] = mapped_column(String(60))
     regimen: Mapped[str] = mapped_column(String(30), nullable=False)
+    # IVA por defecto del comercio: lo toman los productos nuevos. Cada
+    # producto guarda el suyo, que se actualiza con el IVA de cada compra.
+    iva_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    # Valor por defecto de la casilla "los precios ya incluyen IVA" en ventas
+    # y compras. Cada venta o compra puede cambiarlo solo para ella.
+    precio_incluye_iva: Mapped[bool] = mapped_column(Boolean, nullable=False)
     actualizado_en: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
