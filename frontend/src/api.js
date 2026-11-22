@@ -204,6 +204,20 @@ export const api = {
   resetearPasswordUsuario: (id) =>
     pedir(`/usuarios/${id}/resetear-password`, { method: 'POST' }),
 
+  // --- Auditoría (solo ADMIN) -------------------------------------------------
+  auditoria: ({ desde, hasta, usuarioId, entidad, campo, buscar, pagina, porPagina } = {}) => {
+    const p = new URLSearchParams()
+    if (desde) p.set('desde', desde)
+    if (hasta) p.set('hasta', hasta)
+    if (usuarioId) p.set('usuario_id', usuarioId)
+    if (entidad) p.set('entidad', entidad)
+    if (campo) p.set('campo', campo)
+    if (buscar) p.set('buscar', buscar)
+    if (pagina) p.set('pagina', pagina)
+    if (porPagina) p.set('por_pagina', porPagina)
+    return pedir(`/auditoria?${p.toString()}`)
+  },
+
   // --- Perfil propio ----------------------------------------------------------
   verPerfil: () => pedir('/perfil/yo'),
   actualizarPerfil: (datos) => pedir('/perfil/yo', { method: 'PUT', ...cuerpo(datos) }),

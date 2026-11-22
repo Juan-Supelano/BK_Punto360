@@ -98,9 +98,14 @@ export default function EscanerCamara({ titulo = 'Escanear código', continuo = 
       if (!continuo) alCerrar.current?.()
     }
 
+    // En desarrollo, React.StrictMode monta este efecto, lo desmonta y lo vuelve
+    // a montar. Por eso, después de cada await se revisa `activo`: si la primera
+    // instancia siguiera, al detenerse vaciaría el <video> que ya usa la segunda
+    // y la imagen quedaría en negro.
     async function iniciar() {
       const restricciones = { video: { facingMode: { ideal: 'environment' } }, audio: false }
       const nativo = await detectorNativo()
+      if (!activo) return
 
       if (nativo) {
         const flujo = await navigator.mediaDevices.getUserMedia(restricciones)
@@ -126,6 +131,7 @@ export default function EscanerCamara({ titulo = 'Escanear código', continuo = 
         // Import tardío: la librería solo se descarga si hace falta.
         const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] =
           await Promise.all([import('@zxing/browser'), import('@zxing/library')])
+        if (!activo) return
         const pistas = new Map([
           [
             DecodeHintType.POSSIBLE_FORMATS,

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app import auditoria
 from app.database import get_db
 from app.models import Comercio, Usuario
 from app.schemas.auth import (
@@ -76,8 +77,10 @@ def actualizar_comercio(
         if cambios.get(obligatorio, 0) is None:
             cambios.pop(obligatorio)
 
+    antes = auditoria.foto(comercio, auditoria.CAMPOS_COMERCIO)
     for campo, valor in cambios.items():
         setattr(comercio, campo, valor)
+    auditoria.registrar(db, admin, "comercio", comercio, antes, auditoria.CAMPOS_COMERCIO)
 
     # iva_pct es el IVA POR DEFECTO: lo toman los productos nuevos y las
     # lineas de compra de productos nuevos. No se copia a los productos que ya

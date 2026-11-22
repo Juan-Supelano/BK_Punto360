@@ -533,6 +533,24 @@ tbody tr:hover {
   color: var(--ok);
 }
 
+/* --- Auditoría (HU-32) ---------------------------------------------------- */
+.auditoria-antes {
+  color: var(--texto-sutil);
+  text-decoration: line-through;
+}
+
+.auditoria-despues {
+  font-weight: 600;
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
 /* --- Compras: líneas de la factura ---------------------------------------- */
 .modal-ancho {
   width: min(940px, 100%);
