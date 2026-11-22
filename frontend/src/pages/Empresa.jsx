@@ -41,6 +41,9 @@ export default function Empresa() {
         cambios.iva_pct = Number(datos.iva_pct)
         cambios.precio_incluye_iva = Boolean(datos.precio_incluye_iva)
       }
+      if (datos.escaneo_camara !== undefined) {
+        cambios.escaneo_camara = Boolean(datos.escaneo_camara)
+      }
       const actualizado = await api.actualizarComercio(cambios)
       setDatos(actualizado)
       refrescarComercio(actualizado)
@@ -117,6 +120,24 @@ export default function Empresa() {
                 ajusta en cada compra y es el que se cobra al vender. La casilla es la opción que
                 viene marcada en Vender y en Compras; allí se puede cambiar solo para una venta o
                 compra.
+              </p>
+            </div>
+          )}
+
+          {esAdmin && datos.escaneo_camara !== undefined && (
+            <div className="campo-completo caja-iva">
+              <strong>Escaneo</strong>
+              <label className="check iva-empresa">
+                <input
+                  type="checkbox"
+                  checked={Boolean(datos.escaneo_camara)}
+                  onChange={(e) => setDatos({ ...datos, escaneo_camara: e.target.checked })}
+                />
+                Permitir escanear códigos con la cámara
+              </label>
+              <p className="sutil">
+                Muestra un botón de cámara en Vender y en el formulario de productos, para los puntos
+                de venta que no tienen lector de códigos.
               </p>
             </div>
           )}

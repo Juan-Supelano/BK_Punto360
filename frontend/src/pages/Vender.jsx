@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import ClienteRapido from '../ClienteRapido.jsx'
+import EscanerCamara from '../EscanerCamara.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
 import { buscarProductos, pareceCodigo, productoExacto } from '../texto.js'
 
@@ -60,6 +61,8 @@ export default function Vender() {
   // esta venta.
   const [incluyeIva, setIncluyeIva] = useState(borrador?.incluyeIva ?? iva.incluyeIva)
   const [recuperada, setRecuperada] = useState(borrador?.carrito?.length > 0)
+  // Escaneo con cámara: el botón solo aparece si el ADMIN lo activó.
+  const [escaneando, setEscaneando] = useState(false)
 
   const [error, setError] = useState('')
   const [cobrando, setCobrando] = useState(false)
@@ -220,6 +223,19 @@ export default function Vender() {
     }
   }
 
+  // Lectura de la cámara: mismo criterio que Enter con un lector físico.
+  // Devuelve el texto que el escáner muestra debajo del video.
+  function codigoDeCamara(codigo) {
+    const producto = productoExacto(productos, codigo)
+    if (!producto) return 'Código no registrado'
+    if (producto.stock_actual <= 0) {
+      setError(`${producto.nombre} está sin stock.`)
+      return `Sin stock: ${producto.nombre}`
+    }
+    agregar(producto)
+    return `✓ ${producto.nombre}`
+  }
+
   // --- Totales ----------------------------------------------------------------
   const totales = useMemo(() => {
     let subtotal = 0
@@ -292,7 +308,18 @@ export default function Vender() {
       <div className="pos">
         {/* ---------- Izquierda: buscador y carrito ---------- */}
         <div className="pos-principal">
-          <div className="pos-buscador">
+          <div className={comercio?.escaneo_camara ? 'pos-buscador con-camara' : 'pos-buscador'}>
+            {comercio?.escaneo_camara && (
+              <button
+                type="button"
+                className="btn btn-suave btn-camara"
+                title="Escanear con la cámara"
+                aria-label="Escanear con la cámara"
+                onClick={() => setEscaneando(true)}
+              >
+                📷
+              </button>
+            )}
             <input
               ref={buscador}
               type="search"
@@ -611,6 +638,17 @@ export default function Vender() {
 
       {altaCliente && (
         <ClienteRapido onCerrar={() => setAltaCliente(false)} onCreado={clienteCreado} />
+      )}
+      {escaneando && (
+        <EscanerCamara
+          titulo="Escanear productos"
+          continuo
+          onLeido={codigoDeCamara}
+          onCerrar={() => {
+            setEscaneando(false)
+            buscador.current?.focus()
+          }}
+        />
       )}
     </section>
   )
