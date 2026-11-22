@@ -639,6 +639,19 @@ export default function Vender() {
       {altaCliente && (
         <ClienteRapido onCerrar={() => setAltaCliente(false)} onCreado={clienteCreado} />
       )}
+      {/* Solo en el celular: total y Cobrar siempre a la vista. */}
+      {carrito.length > 0 && (
+        <div className="barra-cobro-movil">
+          <div>
+            <span className="sutil">Total</span>
+            <strong>{pesos.format(totales.total)}</strong>
+          </div>
+          <button className="btn btn-primario" disabled={cobrando} onClick={cobrar}>
+            {cobrando ? 'Registrando…' : 'Cobrar'}
+          </button>
+        </div>
+      )}
+
       {escaneando && (
         <EscanerCamara
           titulo="Escanear productos"

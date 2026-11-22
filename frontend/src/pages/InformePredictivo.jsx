@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api, pesos } from '../api.js'
+
+const FILAS_COMPRA = 10
 
 /**
  * Informe predictivo (HU-26). Solo ADMIN.
@@ -250,6 +252,23 @@ export default function InformePredictivo() {
     .filter((p) => p.cantidad_sugerida > 0)
     .sort((a, b) => porDias(a, b) || b.cantidad_sugerida - a.cantidad_sugerida)
   const costoCompra = compra.reduce((s, p) => s + p.cantidad_sugerida * p.costo, 0)
+
+  // La compra sugerida muestra 10 filas; el resto se ve con el scroll de la
+  // tabla. El alto se mide con las filas reales porque no todas miden igual.
+  const tablaCompra = useRef(null)
+  useLayoutEffect(() => {
+    const caja = tablaCompra.current
+    if (!caja) return
+    const filas = caja.querySelectorAll('tbody tr')
+    if (filas.length <= FILAS_COMPRA) {
+      caja.style.removeProperty('--alto-max')
+      return
+    }
+    let alto = caja.querySelector('thead').offsetHeight
+    alto += caja.querySelector('tfoot')?.offsetHeight || 0
+    for (let i = 0; i < FILAS_COMPRA; i++) alto += filas[i].offsetHeight
+    caja.style.setProperty('--alto-max', `${alto + 2}px`)
+  }, [compra])
   const baja = productos
     .filter((p) => p.baja_rotacion)
     .sort((a, b) => b.valor_inmovilizado - a.valor_inmovilizado)
@@ -426,7 +445,7 @@ export default function InformePredictivo() {
           </form>
         </div>
 
-        <div className="tabla-envoltura">
+        <div className="tabla-envoltura tabla-limitada" ref={tablaCompra}>
           <table>
             <thead>
               <tr>
@@ -464,13 +483,15 @@ export default function InformePredictivo() {
                   </td>
                 </tr>
               )}
-              {compra.length > 0 && (
+            </tbody>
+            {compra.length > 0 && (
+              <tfoot>
                 <tr className="fila-total">
                   <td colSpan="5">Total estimado de la compra</td>
                   <td className="derecha">{pesos.format(costoCompra)}</td>
                 </tr>
-              )}
-            </tbody>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

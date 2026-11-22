@@ -211,14 +211,17 @@ def crear(
     usuario: Usuario = Depends(usuario_actual),
 ):
     """El SKU no se recibe: siempre lo arma el backend con el prefijo de la
-    categoria, que es lo que digito el administrador al crearla. El IVA
-    tampoco: es el del comercio."""
+    categoria, que es lo que digito el administrador al crearla. Si no llega
+    IVA, se usa el IVA por defecto de Mi empresa."""
     campos = datos.model_dump()
+    iva_pct = campos.pop("iva_pct")
+    if iva_pct is None:
+        iva_pct = usuario.comercio.iva_pct
 
     # Si dos cajeros crean productos a la vez pueden calcular el mismo
     # consecutivo. El UNIQUE de la base rechaza al segundo y aqui se reintenta.
     for _ in range(5):
-        producto = nuevo_producto(db, campos, usuario.comercio.iva_pct)
+        producto = nuevo_producto(db, campos, iva_pct)
         db.add(producto)
         try:
             db.commit()

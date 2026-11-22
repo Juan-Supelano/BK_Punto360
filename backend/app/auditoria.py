@@ -21,7 +21,14 @@ from sqlalchemy.orm import Session
 from app.models import AuditoriaCambio, Categoria, Usuario
 
 # Campos que se auditan por entidad.
-CAMPOS_PRODUCTO = ("nombre", "codigo_barras", "precio_venta", "categoria_id", "activo")
+CAMPOS_PRODUCTO = (
+    "nombre",
+    "codigo_barras",
+    "precio_venta",
+    "iva_pct",
+    "categoria_id",
+    "activo",
+)
 CAMPOS_USUARIO = ("rol", "activo")
 CAMPOS_COMERCIO = ("iva_pct", "precio_incluye_iva", "escaneo_camara")
 

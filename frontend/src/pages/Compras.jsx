@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import BuscadorProducto from '../BuscadorProducto.jsx'
+import CabeceraFija from '../CabeceraFija.jsx'
+import Paginacion, { usePaginacion } from '../Paginacion.jsx'
 import ProductoRapido from '../ProductoRapido.jsx'
 import { pareceCodigo } from '../texto.js'
 
@@ -36,6 +38,8 @@ export default function Compras() {
 
   const [filtroProveedor, setFiltroProveedor] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
 
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [proveedorId, setProveedorId] = useState('')
@@ -66,6 +70,8 @@ export default function Compras() {
         api.listarCompras({
           proveedorId: filtroProveedor || undefined,
           estado: filtroEstado || undefined,
+          desde: desde || undefined,
+          hasta: hasta || undefined,
         }),
         api.listarProveedores(),
         api.listarProductos(),
@@ -79,11 +85,13 @@ export default function Compras() {
     } finally {
       setCargando(false)
     }
-  }, [filtroProveedor, filtroEstado])
+  }, [filtroProveedor, filtroEstado, desde, hasta])
 
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  const pag = usePaginacion(compras, `${filtroProveedor}|${filtroEstado}|${desde}|${hasta}`)
 
   const resumen = useMemo(() => {
     const recibidas = compras.filter((c) => c.estado === 'RECIBIDA')
@@ -245,57 +253,81 @@ export default function Compras() {
 
   return (
     <section>
-      <div className="titulo-vista">
-        <div>
-          <h2>Compras</h2>
-          <p className="sutil">
-            {esAdmin
-              ? 'Registrar una compra suma el stock y deja el movimiento en el kardex'
-              : 'Consulta de las compras registradas por administración'}
-          </p>
+      {/* El título, el resumen y los filtros se quedan fijos arriba mientras
+          baja la tabla. */}
+      <CabeceraFija>
+        <div className="titulo-vista">
+          <div>
+            <h2>Compras</h2>
+            <p className="sutil">
+              {esAdmin
+                ? 'Registrar una compra suma el stock y deja el movimiento en el kardex'
+                : 'Consulta de las compras registradas por administración'}
+            </p>
+          </div>
+          {esAdmin && (
+            <button className="btn btn-primario" onClick={abrirNueva}>
+              + Registrar compra
+            </button>
+          )}
         </div>
-        {esAdmin && (
-          <button className="btn btn-primario" onClick={abrirNueva}>
-            + Registrar compra
-          </button>
-        )}
-      </div>
 
-      <div className="tarjetas-resumen">
-        <div className="tarjeta-dato">
-          <span className="dato-etiqueta">Compras recibidas</span>
-          <strong className="dato-valor">{resumen.cantidad}</strong>
+        <div className="tarjetas-resumen">
+          <div className="tarjeta-dato">
+            <span className="dato-etiqueta">Compras recibidas</span>
+            <strong className="dato-valor">{resumen.cantidad}</strong>
+          </div>
+          <div className="tarjeta-dato">
+            <span className="dato-etiqueta">Total comprado</span>
+            <strong className="dato-valor">{pesos.format(resumen.total)}</strong>
+          </div>
+          <div className={`tarjeta-dato ${resumen.anuladas ? 'alerta' : ''}`}>
+            <span className="dato-etiqueta">Anuladas</span>
+            <strong className="dato-valor">{resumen.anuladas}</strong>
+          </div>
         </div>
-        <div className="tarjeta-dato">
-          <span className="dato-etiqueta">Total comprado</span>
-          <strong className="dato-valor">{pesos.format(resumen.total)}</strong>
-        </div>
-        <div className={`tarjeta-dato ${resumen.anuladas ? 'alerta' : ''}`}>
-          <span className="dato-etiqueta">Anuladas</span>
-          <strong className="dato-valor">{resumen.anuladas}</strong>
-        </div>
-      </div>
 
-      {error && <p className="aviso aviso-error">{error}</p>}
+        {error && <p className="aviso aviso-error">{error}</p>}
 
-      <div className="barra-filtros">
-        <select
-          value={filtroProveedor}
-          onChange={(e) => setFiltroProveedor(e.target.value)}
-        >
-          <option value="">Todos los proveedores</option>
-          {proveedores.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </select>
-        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
-          <option value="">Todos los estados</option>
-          <option value="RECIBIDA">Recibidas</option>
-          <option value="ANULADA">Anuladas</option>
-        </select>
-      </div>
+        <div className="barra-filtros">
+          <label className="campo-inline">
+            <span className="sutil">Desde</span>
+            <input
+              type="date"
+              value={desde}
+              max={hasta || undefined}
+              onChange={(e) => setDesde(e.target.value)}
+            />
+          </label>
+          <label className="campo-inline">
+            <span className="sutil">Hasta</span>
+            <input
+              type="date"
+              value={hasta}
+              min={desde || undefined}
+              onChange={(e) => setHasta(e.target.value)}
+            />
+          </label>
+          <select
+            value={filtroProveedor}
+            onChange={(e) => setFiltroProveedor(e.target.value)}
+          >
+            <option value="">Todos los proveedores</option>
+            {proveedores.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+            <option value="">Todos los estados</option>
+            <option value="RECIBIDA">Recibidas</option>
+            <option value="ANULADA">Anuladas</option>
+          </select>
+
+          <Paginacion {...pag} enBarra />
+        </div>
+      </CabeceraFija>
 
       <div className="tabla-envoltura">
         <table>
@@ -321,7 +353,7 @@ export default function Compras() {
             )}
 
             {!cargando &&
-              compras.map((c) => (
+              pag.visibles.map((c) => (
                 <tr key={c.id} className={c.estado === 'ANULADA' ? 'fila-inactiva' : ''}>
                   <td className="mono">{c.numero_factura}</td>
                   <td>{c.proveedor.nombre}</td>

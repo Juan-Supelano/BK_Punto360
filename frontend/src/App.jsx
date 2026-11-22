@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { urlFoto } from './api.js'
 import { useAuth } from './auth.jsx'
+import { cerrarVentanaDeArriba, etiquetarTablas } from './interfaz.js'
 import Auditoria from './pages/Auditoria.jsx'
 import CambiarPasswordObligatorio from './pages/CambiarPasswordObligatorio.jsx'
 import Categorias from './pages/Categorias.jsx'
@@ -45,6 +46,9 @@ function iniciales(nombre = '') {
 export default function App() {
   const { usuario, verificando, salir } = useAuth()
   const [vista, setVista] = useState(null)
+  // Menú lateral en el celular: se abre con ☰ y se cierra al elegir una vista.
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const contenido = useRef(null)
 
   const rol = usuario?.rol
   const esAdmin = rol === 'ADMIN'
@@ -59,6 +63,39 @@ export default function App() {
       setVista(esAdmin ? 'ventas' : 'vender')
     }
   }, [rol, vista, esAdmin])
+
+  // Escape: cierra el menú del celular o la ventana emergente de arriba.
+  useEffect(() => {
+    const tecla = (e) => {
+      if (e.key !== 'Escape') return
+      if (menuAbierto) {
+        setMenuAbierto(false)
+      } else {
+        cerrarVentanaDeArriba()
+      }
+    }
+    document.addEventListener('keydown', tecla)
+    return () => document.removeEventListener('keydown', tecla)
+  }, [menuAbierto])
+
+  // Etiquetas de las tablas para verlas como tarjetas en el celular. Se
+  // recalculan cuando cambia el contenido (filtros, paginación, otra vista).
+  useEffect(() => {
+    const raiz = contenido.current
+    if (!raiz) return
+    let pendiente = 0
+    const recalcular = () => {
+      cancelAnimationFrame(pendiente)
+      pendiente = requestAnimationFrame(() => etiquetarTablas(raiz))
+    }
+    recalcular()
+    const observador = new MutationObserver(recalcular)
+    observador.observe(raiz, { childList: true, subtree: true })
+    return () => {
+      observador.disconnect()
+      cancelAnimationFrame(pendiente)
+    }
+  })
 
   if (verificando) {
     return <div className="pantalla-carga">Cargando…</div>
@@ -80,9 +117,34 @@ export default function App() {
   const foto = urlFoto(usuario.foto_url)
   const activa = vista ?? inicial
 
+  const titulo = VISTAS.find((v) => v.clave === activa)?.titulo
+
+  function irA(clave) {
+    setVista(clave)
+    setMenuAbierto(false)
+    window.scrollTo(0, 0)
+  }
+
   return (
     <div className="disposicion">
-      <aside className="lateral">
+      {/* Solo en el celular: barra de arriba con el botón del menú. */}
+      <header className="barra-movil">
+        <button
+          className="btn btn-suave btn-menu"
+          aria-label="Abrir menú"
+          aria-expanded={menuAbierto}
+          onClick={() => setMenuAbierto(true)}
+        >
+          ☰
+        </button>
+        <img className="producto-logo" src="/img/marca-punto360.png" alt="" />
+        <strong className="barra-movil-titulo">
+          {titulo === 'Ventas' && !esAdmin ? 'Mis ventas' : titulo}
+        </strong>
+      </header>
+      {menuAbierto && <div className="velo-menu" onClick={() => setMenuAbierto(false)} />}
+
+      <aside className={menuAbierto ? 'lateral abierto' : 'lateral'}>
         {/* Marca del producto arriba; debajo, la empresa que usa el sistema. */}
         <div className="lateral-producto">
           <img className="producto-logo" src="/img/marca-punto360.png" alt="" />
@@ -114,7 +176,7 @@ export default function App() {
             <button
               key={v.clave}
               className={activa === v.clave ? 'nav-item activo' : 'nav-item'}
-              onClick={() => setVista(v.clave)}
+              onClick={() => irA(v.clave)}
             >
               <span className="nav-icono" aria-hidden="true">
                 {v.icono}
@@ -142,7 +204,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="contenido">
+      <main className="contenido" ref={contenido}>
         {activa === 'vender' && !esAdmin && <Vender />}
         {activa === 'ventas' && <Ventas />}
         {activa === 'prediccion' && esAdmin && <InformePredictivo />}

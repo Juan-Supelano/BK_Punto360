@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import InformeVentas from '../InformeVentas.jsx'
+import CabeceraFija from '../CabeceraFija.jsx'
+import Paginacion, { usePaginacion } from '../Paginacion.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
 
 const fechaHora = new Intl.DateTimeFormat('es-CO', {
@@ -71,6 +73,8 @@ export default function Ventas() {
     cargar()
   }, [cargar])
 
+  const pag = usePaginacion(ventas, `${desde}|${hasta}|${filtroCajero}|${filtroEstado}`)
+
   // El informe solo está montado mientras se imprime, para que no salga junto
   // con un recibo la próxima vez que se reimprima una venta.
   useEffect(() => {
@@ -126,82 +130,88 @@ export default function Ventas() {
 
   return (
     <section>
-      <div className="titulo-vista">
-        <div>
-          <h2>{esAdmin ? 'Ventas' : 'Mis ventas'}</h2>
-          <p className="sutil">
-            {esAdmin
-              ? 'Todas las ventas registradas por los cajeros'
-              : 'Las ventas que has registrado tú'}
-          </p>
+      {/* Admin: el título, el resumen y los filtros se quedan fijos arriba
+          mientras bajan las ventas por cajero y la tabla. */}
+      <CabeceraFija activa={esAdmin}>
+        <div className="titulo-vista">
+          <div>
+            <h2>{esAdmin ? 'Ventas' : 'Mis ventas'}</h2>
+            <p className="sutil">
+              {esAdmin
+                ? 'Todas las ventas registradas por los cajeros'
+                : 'Las ventas que has registrado tú'}
+            </p>
+          </div>
+          {esAdmin && (
+            <button
+              className="btn btn-primario"
+              title="Imprime las ventas del rango de fechas y los filtros elegidos"
+              disabled={cargando || ventas.length === 0}
+              onClick={() => setInforme(true)}
+            >
+              Imprimir informe
+            </button>
+          )}
         </div>
-        {esAdmin && (
-          <button
-            className="btn btn-primario"
-            title="Imprime las ventas del rango de fechas y los filtros elegidos"
-            disabled={cargando || ventas.length === 0}
-            onClick={() => setInforme(true)}
-          >
-            Imprimir informe
-          </button>
+
+        {resumen && (
+          <div className="tarjetas-resumen">
+            <div className="tarjeta-dato">
+              <span className="dato-etiqueta">Ventas pagadas</span>
+              <strong className="dato-valor">{resumen.ventas}</strong>
+            </div>
+            <div className="tarjeta-dato">
+              <span className="dato-etiqueta">Total vendido</span>
+              <strong className="dato-valor">{pesos.format(Number(resumen.total))}</strong>
+            </div>
+            <div className="tarjeta-dato">
+              <span className="dato-etiqueta">Ticket promedio</span>
+              <strong className="dato-valor">
+                {pesos.format(Number(resumen.promedio))}
+              </strong>
+            </div>
+            <div className={`tarjeta-dato ${resumen.anuladas ? 'alerta' : ''}`}>
+              <span className="dato-etiqueta">Anuladas</span>
+              <strong className="dato-valor">{resumen.anuladas}</strong>
+            </div>
+          </div>
         )}
-      </div>
 
-      {resumen && (
-        <div className="tarjetas-resumen">
-          <div className="tarjeta-dato">
-            <span className="dato-etiqueta">Ventas pagadas</span>
-            <strong className="dato-valor">{resumen.ventas}</strong>
-          </div>
-          <div className="tarjeta-dato">
-            <span className="dato-etiqueta">Total vendido</span>
-            <strong className="dato-valor">{pesos.format(Number(resumen.total))}</strong>
-          </div>
-          <div className="tarjeta-dato">
-            <span className="dato-etiqueta">Ticket promedio</span>
-            <strong className="dato-valor">
-              {pesos.format(Number(resumen.promedio))}
-            </strong>
-          </div>
-          <div className={`tarjeta-dato ${resumen.anuladas ? 'alerta' : ''}`}>
-            <span className="dato-etiqueta">Anuladas</span>
-            <strong className="dato-valor">{resumen.anuladas}</strong>
-          </div>
-        </div>
-      )}
+        {error && <p className="aviso aviso-error">{error}</p>}
 
-      {error && <p className="aviso aviso-error">{error}</p>}
+        <div className="barra-filtros">
+          <label className="campo-inline">
+            <span className="sutil">Desde</span>
+            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+          </label>
+          <label className="campo-inline">
+            <span className="sutil">Hasta</span>
+            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+          </label>
 
-      <div className="barra-filtros">
-        <label className="campo-inline">
-          <span className="sutil">Desde</span>
-          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        </label>
-        <label className="campo-inline">
-          <span className="sutil">Hasta</span>
-          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
-        </label>
+          {esAdmin && (
+            <select
+              value={filtroCajero}
+              onChange={(e) => setFiltroCajero(e.target.value)}
+            >
+              <option value="">Todos los cajeros</option>
+              {porCajero.map((c) => (
+                <option key={c.usuario_id} value={c.usuario_id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          )}
 
-        {esAdmin && (
-          <select
-            value={filtroCajero}
-            onChange={(e) => setFiltroCajero(e.target.value)}
-          >
-            <option value="">Todos los cajeros</option>
-            {porCajero.map((c) => (
-              <option key={c.usuario_id} value={c.usuario_id}>
-                {c.nombre}
-              </option>
-            ))}
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+            <option value="">Todos los estados</option>
+            <option value="PAGADA">Pagadas</option>
+            <option value="ANULADA">Anuladas</option>
           </select>
-        )}
 
-        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
-          <option value="">Todos los estados</option>
-          <option value="PAGADA">Pagadas</option>
-          <option value="ANULADA">Anuladas</option>
-        </select>
-      </div>
+          <Paginacion {...pag} enBarra />
+        </div>
+      </CabeceraFija>
 
       {esAdmin && porCajero.length > 0 && (
         <div className="panel-cajeros">
@@ -239,7 +249,7 @@ export default function Ventas() {
             )}
 
             {!cargando &&
-              ventas.map((v) => (
+              pag.visibles.map((v) => (
                 <tr key={v.id} className={v.estado === 'ANULADA' ? 'fila-inactiva' : ''}>
                   <td className="mono">{v.numero}</td>
                   <td className="sutil">{formatear(v.fecha)}</td>

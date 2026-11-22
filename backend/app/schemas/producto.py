@@ -20,7 +20,8 @@ class ProductoCrear(BaseModel):
     descripcion: str | None = None
     precio_venta: Decimal = Field(ge=0)
     costo: Decimal = Field(default=Decimal("0"), ge=0)
-    # Sin iva_pct: lo pone el backend con el IVA del comercio (Mi empresa).
+    # Si no llega, el backend pone el IVA por defecto de Mi empresa.
+    iva_pct: Decimal | None = Field(default=None, ge=0, le=100)
     stock_actual: int = Field(default=0, ge=0)
     stock_minimo: int = Field(default=0, ge=0)
     unidad_medida: str = Field(default="UND")
@@ -35,6 +36,7 @@ class ProductoCrear(BaseModel):
 class ProductoActualizar(BaseModel):
     # El SKU tampoco se edita: es un codigo derivado de la categoria.
     nombre: str | None = Field(default=None, min_length=1, max_length=150)
+    iva_pct: Decimal | None = Field(default=None, ge=0, le=100)
     codigo_barras: str | None = Field(default=None, max_length=50)
     descripcion: str | None = None
     precio_venta: Decimal | None = Field(default=None, ge=0)

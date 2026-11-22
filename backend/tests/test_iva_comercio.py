@@ -32,6 +32,7 @@ def test_comercio_trae_la_configuracion_del_iva(client, cajero):
 
 
 def test_producto_nuevo_toma_el_iva_del_comercio(client, admin):
+    # Sin iva_pct toma el de Mi empresa. Con iva_pct propio: test_producto_iva.py
     iva = Decimal(client.get("/auth/comercio", headers=admin).json()["iva_pct"])
     r = client.post(
         "/productos",
@@ -39,7 +40,6 @@ def test_producto_nuevo_toma_el_iva_del_comercio(client, admin):
             "nombre": f"Prueba IVA {uuid.uuid4().hex[:6]}",
             "precio_venta": "1000",
             "categoria_id": _categoria(client, admin),
-            "iva_pct": "5",  # se ignora: manda el del comercio
         },
         headers=admin,
     )
