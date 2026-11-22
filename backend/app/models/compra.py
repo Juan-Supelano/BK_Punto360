@@ -59,6 +59,8 @@ class CompraItem(Base):
     cantidad: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
     costo_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # IVA con el que se facturo esta linea (NULL en compras viejas).
+    iva_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
 
     compra: Mapped["Compra"] = relationship(back_populates="items")
     producto: Mapped["Producto"] = relationship()

@@ -107,7 +107,6 @@ export default function Recibo({ venta, comercio, recibido = null }) {
                 <div className="rp-chico">
                   {Number(it.cantidad)} {it.producto.unidad_medida} ×{' '}
                   {pesos.format(Number(it.precio_unitario))}
-                  {Number(it.iva_pct) > 0 && ` · IVA ${Number(it.iva_pct)}%`}
                 </div>
               </td>
               <td className="rp-derecha rp-arriba">
@@ -127,11 +126,6 @@ export default function Recibo({ venta, comercio, recibido = null }) {
       <div className="rp-fila">
         <span>IVA</span>
         <span>{pesos.format(Number(venta.total_iva))}</span>
-      </div>
-      <div className="rp-chico">
-        {venta.precio_incluye_iva
-          ? 'Valores con IVA incluido en el precio'
-          : 'IVA calculado sobre el valor base'}
       </div>
       <div className="rp-fila rp-total">
         <strong>TOTAL</strong>

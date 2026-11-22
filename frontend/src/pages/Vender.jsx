@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, desglosarIva, pesos } from '../api.js'
+import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import ClienteRapido from '../ClienteRapido.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
@@ -38,6 +38,9 @@ function reconciliar(carrito, productos) {
 export default function Vender() {
   const { usuario } = useAuth()
   const comercio = usuario?.comercio
+  // Valor por defecto de la casilla de IVA (Mi empresa). El porcentaje es el
+  // de cada producto.
+  const iva = ivaDelComercio(comercio)
 
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -53,9 +56,9 @@ export default function Vender() {
   const [metodoPago, setMetodoPago] = useState(borrador?.metodoPago ?? 'EFECTIVO')
   const [observaciones, setObservaciones] = useState(borrador?.observaciones ?? '')
   const [recibido, setRecibido] = useState(borrador?.recibido ?? '')
-  // Marcado: el precio de lista ya trae el IVA y la factura lo desglosa.
-  // Es lo normal en mostrador, por eso arranca en true.
-  const [incluyeIva, setIncluyeIva] = useState(borrador?.incluyeIva ?? true)
+  // Arranca como lo dejó el ADMIN en Mi empresa; se puede cambiar solo para
+  // esta venta.
+  const [incluyeIva, setIncluyeIva] = useState(borrador?.incluyeIva ?? iva.incluyeIva)
   const [recuperada, setRecuperada] = useState(borrador?.carrito?.length > 0)
 
   const [error, setError] = useState('')
@@ -96,7 +99,7 @@ export default function Vender() {
       !observaciones &&
       !recibido &&
       metodoPago === 'EFECTIVO' &&
-      incluyeIva
+      incluyeIva === iva.incluyeIva
     try {
       if (vacia) {
         sessionStorage.removeItem(llave)
@@ -109,11 +112,15 @@ export default function Vender() {
     } catch {
       // Almacenamiento lleno o bloqueado: la venta sigue funcionando sin borrador.
     }
-  }, [usuario, carrito, clienteId, metodoPago, observaciones, recibido, incluyeIva])
+  }, [usuario, carrito, clienteId, metodoPago, observaciones, recibido, incluyeIva, iva.incluyeIva])
 
   // --- Búsqueda de productos --------------------------------------------------
   // Se normalizan los dos lados: lo escrito y lo guardado.
-  const coincidencias = useMemo(() => buscarProductos(productos, texto), [texto, productos])
+  // Los agotados van al final: Enter siempre cae primero en uno con stock.
+  const coincidencias = useMemo(
+    () => buscarProductos(productos, texto, { conStockPrimero: true }),
+    [texto, productos],
+  )
 
   function agregar(producto) {
     if (producto.stock_actual <= 0) {
@@ -178,6 +185,7 @@ export default function Vender() {
     setMetodoPago('EFECTIVO')
     setObservaciones('')
     setRecibido('')
+    setIncluyeIva(iva.incluyeIva)
     setError('')
     setRecuperada(false)
   }
@@ -205,20 +213,15 @@ export default function Vender() {
   // --- Totales ----------------------------------------------------------------
   const totales = useMemo(() => {
     let subtotal = 0
-    let iva = 0
+    let totalIva = 0
     let total = 0
     for (const l of carrito) {
-      const d = desglosarIva(
-        l.producto.precio_venta,
-        l.cantidad,
-        l.producto.iva_pct,
-        incluyeIva,
-      )
+      const d = desglosarIva(l.producto.precio_venta, l.cantidad, l.producto.iva_pct, incluyeIva)
       subtotal += d.subtotal
-      iva += d.iva
+      totalIva += d.iva
       total += d.total
     }
-    return { subtotal, iva, total }
+    return { subtotal, iva: totalIva, total }
   }, [carrito, incluyeIva])
 
   const cambio =
@@ -340,10 +343,6 @@ export default function Vender() {
                     </td>
                     <td className="derecha">
                       {pesos.format(Number(l.producto.precio_venta))}
-                      <div className="sutil">
-                        IVA {Number(l.producto.iva_pct)}%{' '}
-                        {incluyeIva ? 'incl.' : 'más'}
-                      </div>
                     </td>
                     <td className="centro">
                       <div className="control-stock">

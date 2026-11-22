@@ -17,10 +17,17 @@ export function mayusculaInicial(texto = '') {
 }
 
 // Busca productos por SKU o nombre, sin importar tildes ni mayúsculas.
-export function buscarProductos(productos, texto, limite = 8) {
+// conStockPrimero: los agotados van al final, para que Enter caiga en uno que
+// sí se puede vender.
+export function buscarProductos(productos, texto, { limite = 8, conStockPrimero = false } = {}) {
   const q = sinTildes(texto.trim())
   if (!q) return []
-  return productos
-    .filter((p) => sinTildes(p.sku).includes(q) || sinTildes(p.nombre).includes(q))
-    .slice(0, limite)
+  const hallados = productos.filter(
+    (p) => sinTildes(p.sku).includes(q) || sinTildes(p.nombre).includes(q),
+  )
+  if (conStockPrimero) {
+    // sort es estable: dentro de cada grupo se respeta el orden original.
+    hallados.sort((a, b) => (b.stock_actual > 0) - (a.stock_actual > 0))
+  }
+  return hallados.slice(0, limite)
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, pesos } from '../api.js'
+import { useAuth } from '../auth.jsx'
 import { mayusculaInicial } from '../texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
@@ -10,7 +11,6 @@ const VACIO = {
   descripcion: '',
   precio_venta: '',
   costo: '',
-  iva_pct: '19',
   stock_actual: '',
   stock_minimo: '',
   unidad_medida: 'UND',
@@ -52,6 +52,8 @@ function nombreMovimiento(m) {
 }
 
 export default function Productos() {
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol === 'ADMIN'
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [filtroCategoria, setFiltroCategoria] = useState('')
@@ -160,7 +162,6 @@ export default function Productos() {
       descripcion: p.descripcion ?? '',
       precio_venta: String(p.precio_venta),
       costo: String(p.costo),
-      iva_pct: String(p.iva_pct),
       stock_actual: String(p.stock_actual),
       stock_minimo: String(p.stock_minimo),
       unidad_medida: p.unidad_medida,
@@ -186,7 +187,6 @@ export default function Productos() {
       descripcion: formulario.descripcion.trim() || null,
       precio_venta: Number(formulario.precio_venta),
       costo: Number(formulario.costo || 0),
-      iva_pct: Number(formulario.iva_pct || 0),
       stock_actual: Number(formulario.stock_actual || 0),
       stock_minimo: Number(formulario.stock_minimo || 0),
       unidad_medida: formulario.unidad_medida,
@@ -398,12 +398,15 @@ export default function Productos() {
                     <button className="btn btn-suave" onClick={() => abrirEdicion(p)}>
                       Editar
                     </button>
-                    <button
-                      className={p.activo ? 'btn btn-peligro' : 'btn btn-suave'}
-                      onClick={() => alternarActivo(p)}
-                    >
-                      {p.activo ? 'Desactivar' : 'Reactivar'}
-                    </button>
+                    {/* Desactivar y reactivar: solo ADMIN (el backend también lo exige). */}
+                    {esAdmin && (
+                      <button
+                        className={p.activo ? 'btn btn-peligro' : 'btn btn-suave'}
+                        onClick={() => alternarActivo(p)}
+                      >
+                        {p.activo ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -477,11 +480,6 @@ export default function Productos() {
               <label className="campo">
                 <span>Costo</span>
                 <input type="number" min="0" step="0.01" {...campo('costo')} />
-              </label>
-
-              <label className="campo">
-                <span>IVA %</span>
-                <input type="number" min="0" max="100" step="0.01" {...campo('iva_pct')} />
               </label>
 
               <label className="campo">

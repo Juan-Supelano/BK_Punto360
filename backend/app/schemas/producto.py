@@ -12,7 +12,7 @@ class ProductoCrear(BaseModel):
     descripcion: str | None = None
     precio_venta: Decimal = Field(ge=0)
     costo: Decimal = Field(default=Decimal("0"), ge=0)
-    iva_pct: Decimal = Field(default=Decimal("19.00"), ge=0, le=100)
+    # Sin iva_pct: lo pone el backend con el IVA del comercio (Mi empresa).
     stock_actual: int = Field(default=0, ge=0)
     stock_minimo: int = Field(default=0, ge=0)
     unidad_medida: str = Field(default="UND")
@@ -25,7 +25,6 @@ class ProductoActualizar(BaseModel):
     descripcion: str | None = None
     precio_venta: Decimal | None = Field(default=None, ge=0)
     costo: Decimal | None = Field(default=None, ge=0)
-    iva_pct: Decimal | None = Field(default=None, ge=0, le=100)
     stock_actual: int | None = Field(default=None, ge=0)
     stock_minimo: int | None = Field(default=None, ge=0)
     unidad_medida: str | None = None

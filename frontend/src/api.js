@@ -246,3 +246,12 @@ export function desglosarIva(precio, cantidad, ivaPct, incluyeIva) {
   const iva = Math.round(bruto * tasa * 100) / 100
   return { subtotal: bruto, iva, total: bruto + iva }
 }
+
+// Configuración del IVA del comercio (Mi empresa). Si la base todavía no tiene
+// esas columnas, se usan los valores de siempre.
+export function ivaDelComercio(comercio) {
+  return {
+    ivaPct: Number(comercio?.iva_pct ?? 19),
+    incluyeIva: comercio?.precio_incluye_iva ?? true,
+  }
+}
