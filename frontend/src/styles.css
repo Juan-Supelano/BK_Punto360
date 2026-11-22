@@ -85,12 +85,64 @@ h3 {
   height: 100vh;
 }
 
+/* Marca Punto360: siempre arriba, igual para todos los comercios. */
+.lateral-producto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 16px;
+}
+
+.producto-logo {
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border-radius: 9px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.producto-texto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.producto-nombre {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.producto-nombre b {
+  color: #5b8def;
+  font-weight: 800;
+}
+
+.producto-nombre sup {
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 1px;
+  color: var(--lateral-texto);
+}
+
+.producto-lema {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7f8b99;
+}
+
+/* Empresa que usa el sistema: tarjeta discreta debajo de la marca. */
 .lateral-marca {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 6px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .marca-logo {
@@ -596,8 +648,43 @@ tbody tr:hover {
 }
 
 .sugerencia:hover:not(:disabled),
-.sugerencia.primera {
+.sugerencia.activa {
   background: #eef4fe;
+}
+
+/* Buscador de producto en las líneas de una compra. */
+.lineas-compra .tabla-lineas td:first-child {
+  width: 46%;
+}
+
+.buscador-producto {
+  position: relative;
+}
+
+.tabla-lineas .buscador-producto input {
+  text-align: left;
+}
+
+.buscador-producto .sugerencias {
+  min-width: 440px;
+  margin-top: 4px;
+}
+
+.sugerencia-crear {
+  display: block;
+  color: var(--primario);
+  font-weight: 600;
+  border-bottom: 0;
+}
+
+/* Alta rápida abierta encima de otro modal (por ejemplo, la compra). */
+.fondo-encima {
+  z-index: 30;
+}
+
+/* El marcado con las flechas se nota aunque esté sin stock. */
+.sugerencia.activa {
+  box-shadow: inset 3px 0 0 var(--primario);
 }
 
 .sugerencia:disabled {
@@ -869,6 +956,11 @@ tbody tr:hover {
     margin: 6px 0 3px;
   }
 
+  .rp-software {
+    margin-top: 4px;
+    font-size: 9px;
+  }
+
   /* --- Informe de ventas: hoja carta o A4 --------------------------------- */
   /* El @page general es para el rollo de 80 mm; el informe usa su propia
      página con márgenes normales. */
@@ -891,6 +983,18 @@ tbody tr:hover {
     gap: 16px;
     padding-bottom: 6px;
     border-bottom: 2px solid #000;
+  }
+
+  .inf-empresa {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .inf-logo {
+    max-height: 48px;
+    max-width: 120px;
+    object-fit: contain;
   }
 
   .inf-comercio {
@@ -995,6 +1099,13 @@ tbody tr:hover {
     margin-top: 8px;
     font-size: 9.5px;
     color: #333;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .inf-software {
+    white-space: nowrap;
   }
 }
 

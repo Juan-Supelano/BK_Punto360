@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import { mayusculaInicial } from '../texto.js'
 
 const VACIO = { nit: '', nombre: '', contacto: '', telefono: '', email: '' }
 
@@ -106,9 +107,10 @@ export default function Proveedores() {
     }
   }
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   return (
@@ -221,12 +223,12 @@ export default function Proveedores() {
 
               <label className="campo campo-ancho">
                 <span>Nombre o razón social</span>
-                <input required maxLength={150} {...campo('nombre')} />
+                <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
               </label>
 
               <label className="campo">
                 <span>Contacto</span>
-                <input maxLength={120} {...campo('contacto')} />
+                <input maxLength={120} {...campo('contacto', mayusculaInicial)} />
               </label>
 
               <label className="campo">
