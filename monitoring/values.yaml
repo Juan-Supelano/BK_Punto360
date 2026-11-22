@@ -1,0 +1,79 @@
+# HU-21: valores del chart kube-prometheus-stack para correr Prometheus y
+# Grafana en un portátil (Docker Desktop). Se instala con:
+#
+#   helm install monitoreo prometheus-community/kube-prometheus-stack \
+#     -n monitoreo --create-namespace -f monitoring/values.yaml
+#
+# La idea es gastar poca memoria: se apaga lo que no se usa en la demo.
+
+# Alertas: el proyecto no envía notificaciones, así que no hacen falta
+# Alertmanager ni las reglas de alerta del chart.
+alertmanager:
+  enabled: false
+defaultRules:
+  create: false
+
+# node-exporter no arranca en Docker Desktop (el disco del nodo no se puede
+# montar como lo pide) y las métricas del nodo no se usan en el dashboard.
+nodeExporter:
+  enabled: false
+
+# Componentes internos de Kubernetes que Docker Desktop no expone: se apagan
+# para que no queden objetivos caídos en Prometheus.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # Lee los ServiceMonitor de cualquier namespace (incluido punto360),
+    # no solo los que traen la etiqueta del release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    # Con dos días de historia sobra para la demo.
+    retention: 2d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 768Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+grafana:
+  # La contraseña de admin la genera el chart y queda en el Secret
+  # monitoreo-grafana (README, sección Kubernetes). No se escribe aquí.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  # Carga como dashboard todo ConfigMap con la etiqueta grafana_dashboard=1,
+  # en cualquier namespace. Así entra monitoring/dashboard-punto360.json.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
