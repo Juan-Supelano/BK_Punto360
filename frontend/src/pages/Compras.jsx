@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, desglosarIva, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import BuscadorProducto from '../BuscadorProducto.jsx'
+import ProductoRapido from '../ProductoRapido.jsx'
 
 const fechaCorta = new Intl.DateTimeFormat('es-CO', {
   day: '2-digit',
@@ -33,6 +35,9 @@ export default function Compras() {
   // Sin marcar: el costo del proveedor es la base. Es lo más común entre
   // empresas, por eso arranca en false.
   const [costoIncluyeIva, setCostoIncluyeIva] = useState(false)
+
+  // Alta rápida de producto desde una línea: { indice, texto } o null.
+  const [altaProducto, setAltaProducto] = useState(null)
 
   const [detalle, setDetalle] = useState(null)
   const [error, setError] = useState('')
@@ -120,6 +125,27 @@ export default function Compras() {
         return actualizada
       }),
     )
+  }
+
+  // El producto recién creado entra al listado y queda elegido en su línea,
+  // con su costo como punto de partida.
+  function productoCreado(producto) {
+    setProductos((lista) =>
+      [...lista, producto].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    )
+    const { indice } = altaProducto
+    setLineas((l) =>
+      l.map((linea, i) =>
+        i === indice
+          ? {
+              ...linea,
+              producto_id: String(producto.id),
+              costo_unitario: linea.costo_unitario || String(producto.costo),
+            }
+          : linea,
+      ),
+    )
+    setAltaProducto(null)
   }
 
   const totales = useMemo(() => {
@@ -406,19 +432,12 @@ export default function Compras() {
                     return (
                       <tr key={i}>
                         <td>
-                          <select
-                            value={linea.producto_id}
-                            onChange={(e) =>
-                              cambiarLinea(i, 'producto_id', e.target.value)
-                            }
-                          >
-                            <option value="">Elige un producto…</option>
-                            {productos.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.sku} · {p.nombre}
-                              </option>
-                            ))}
-                          </select>
+                          <BuscadorProducto
+                            productos={productos}
+                            productoId={linea.producto_id}
+                            onElegir={(p) => cambiarLinea(i, 'producto_id', String(p.id))}
+                            onCrear={(texto) => setAltaProducto({ indice: i, texto })}
+                          />
                           {producto && (
                             <small className="sutil">
                               Stock actual: {producto.stock_actual} {producto.unidad_medida}
@@ -496,6 +515,15 @@ export default function Compras() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Fuera del formulario de la compra: un <form> no puede ir dentro de otro. */}
+      {altaProducto && (
+        <ProductoRapido
+          nombreInicial={altaProducto.texto}
+          onCerrar={() => setAltaProducto(null)}
+          onCreado={productoCreado}
+        />
       )}
 
       {/* ---------- Detalle ---------- */}

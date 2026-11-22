@@ -81,6 +81,18 @@ export default function App() {
   return (
     <div className="disposicion">
       <aside className="lateral">
+        {/* Marca del producto arriba; debajo, la empresa que usa el sistema. */}
+        <div className="lateral-producto">
+          <img className="producto-logo" src="/img/marca-punto360.png" alt="" />
+          <div className="producto-texto">
+            <span className="producto-nombre" aria-label="Punto360 marca registrada">
+              PUNTO<b>360</b>
+              <sup>®</sup>
+            </span>
+            <span className="producto-lema">Sistema POS</span>
+          </div>
+        </div>
+
         <div className="lateral-marca">
           {comercio?.logo_url ? (
             <img className="marca-logo" src={comercio.logo_url} alt="" />

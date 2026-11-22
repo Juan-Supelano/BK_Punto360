@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, pesos } from '../api.js'
+import { mayusculaInicial } from '../texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
 
@@ -243,9 +244,10 @@ export default function Productos() {
     }
   }
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   const categoriaElegida = categorias.find(
@@ -459,7 +461,7 @@ export default function Productos() {
 
               <label className="campo campo-completo">
                 <span>Nombre</span>
-                <input required maxLength={150} {...campo('nombre')} />
+                <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
               </label>
 
               <label className="campo campo-completo">

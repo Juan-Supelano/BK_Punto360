@@ -12,6 +12,7 @@ Archivos esperados (nombre exacto):
 | `logo-punto360.png`      | Login — `src/pages/Login.jsx` (antes decía "CP")  | `/img/logo-punto360.png`         |
 | `isotipo-punto360.png`   | Login — `src/pages/Login.jsx` (antes "Cuadre POS")| `/img/isotipo-punto360.png`      |
 | `icon-punto360.png`      | `index.html` — ícono de la pestaña del navegador  | `/img/icon-punto360.png`         |
+| `marca-punto360.png`     | Barra lateral — `src/App.jsx` (logo recortado)    | `/img/marca-punto360.png`        |
 
 `icon-punto360.png` ya está puesto. Falta agregar `logo-punto360.png` y
 `isotipo-punto360.png` (de preferencia con fondo transparente).

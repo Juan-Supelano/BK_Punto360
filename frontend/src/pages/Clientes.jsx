@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { mayusculaInicial } from '../texto.js'
 
 const TIPOS_DOC = ['CC', 'NIT', 'CE', 'TI', 'PAS']
 
@@ -117,9 +118,10 @@ export default function Clientes() {
     }
   }
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   return (
@@ -247,7 +249,7 @@ export default function Clientes() {
 
               <label className="campo campo-ancho">
                 <span>Nombre</span>
-                <input required maxLength={150} {...campo('nombre')} />
+                <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
               </label>
 
               <label className="campo">
