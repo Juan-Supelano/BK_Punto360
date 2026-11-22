@@ -235,3 +235,9 @@ def test_inventario_trae_los_productos_activos(client, admin):
         assert prod["cantidad_sugerida"] >= 0
         assert 0 <= prod["probabilidad_venta_30d"] <= 1
 
+
+def test_metricas_del_modulo_en_metrics(client, admin):
+    client.get("/prediccion/inventario", headers=admin)
+    texto = client.get("/metrics").text
+    assert "punto360_prediccion_calculos_total" in texto
+    assert "punto360_prediccion_duracion_segundos_bucket" in texto
