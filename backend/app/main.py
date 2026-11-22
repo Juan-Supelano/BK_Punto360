@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.almacenamiento import CARPETA_ESTATICOS, CARPETA_FOTOS
 from app.config import settings
@@ -81,3 +82,11 @@ def salud():
     """Endpoint para el health check de Cloud Run."""
     return {"estado": "ok"}
 
+
+# Metricas para Prometheus. Las del modulo predictivo se registran en
+# app/routers/prediccion.py. HU-24 tambien publica /metrics con el mismo
+# registro por defecto de prometheus-client: al integrar las dos ramas se deja
+# una sola de las dos rutas y las metricas de prediccion siguen saliendo.
+@app.get("/metrics", include_in_schema=False)
+def metricas():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

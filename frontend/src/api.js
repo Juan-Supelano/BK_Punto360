@@ -177,6 +177,17 @@ export const api = {
   anularVenta: (id, motivo) =>
     pedir(`/ventas/${id}/anular`, { method: 'POST', ...cuerpo({ motivo }) }),
 
+  // --- IA predictiva (solo ADMIN) --------------------------------------------
+  proyeccionVentas: (dias) => pedir(`/prediccion/ventas?dias=${dias}`),
+  prediccionInventario: ({ cobertura, tiempoEntrega } = {}) => {
+    const p = new URLSearchParams()
+    if (cobertura) p.set('cobertura', cobertura)
+    if (tiempoEntrega !== undefined) p.set('tiempo_entrega', tiempoEntrega)
+    const cadena = p.toString()
+    return pedir(cadena ? `/prediccion/inventario?${cadena}` : '/prediccion/inventario')
+  },
+  ventasMensuales: (meses = 12) => pedir(`/prediccion/ventas-mensuales?meses=${meses}`),
+
   // --- Usuarios (solo ADMIN) -------------------------------------------------
   listarUsuarios: ({ buscar, incluirInactivos } = {}) => {
     const p = new URLSearchParams()

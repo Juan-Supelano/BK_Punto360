@@ -6,6 +6,7 @@ import Categorias from './pages/Categorias.jsx'
 import Clientes from './pages/Clientes.jsx'
 import Compras from './pages/Compras.jsx'
 import Empresa from './pages/Empresa.jsx'
+import InformePredictivo from './pages/InformePredictivo.jsx'
 import Login from './pages/Login.jsx'
 import Perfil from './pages/Perfil.jsx'
 import Productos from './pages/Productos.jsx'
@@ -19,6 +20,7 @@ import Ventas from './pages/Ventas.jsx'
 const VISTAS = [
   { clave: 'vender', titulo: 'Vender', icono: '⊕', rol: 'CAJERO' },
   { clave: 'ventas', titulo: 'Ventas', icono: '≡', rol: null },
+  { clave: 'prediccion', titulo: 'Informe predictivo', icono: '↗', rol: 'ADMIN' },
   { clave: 'productos', titulo: 'Productos', icono: '▦', rol: null },
   { clave: 'categorias', titulo: 'Categorías', icono: '☰', rol: null },
   { clave: 'proveedores', titulo: 'Proveedores', icono: '⇄', rol: null },
@@ -129,6 +131,7 @@ export default function App() {
       <main className="contenido">
         {activa === 'vender' && !esAdmin && <Vender />}
         {activa === 'ventas' && <Ventas />}
+        {activa === 'prediccion' && esAdmin && <InformePredictivo />}
         {activa === 'productos' && <Productos />}
         {activa === 'categorias' && <Categorias />}
         {activa === 'proveedores' && <Proveedores />}
