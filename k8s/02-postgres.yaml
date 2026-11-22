@@ -1,0 +1,110 @@
+# HU-20: PostgreSQL 16 dentro del clúster, con un StatefulSet y un volumen
+# persistente para que los datos sobrevivan si el pod se reinicia.
+#
+# La base se crea la primera vez con database/schema.sql y database/seed.sql.
+# Esos archivos llegan en el ConfigMap db-init, que se genera desde el
+# repositorio (así no hay una segunda copia del esquema que mantener):
+#
+#   kubectl create configmap db-init -n punto360 \
+#     --from-file=01-schema.sql=database/schema.sql \
+#     --from-file=02-seed.sql=database/seed.sql
+#
+# La imagen de postgres ejecuta los .sql de /docker-entrypoint-initdb.d en orden
+# alfabético, y SOLO si el volumen está vacío. Para volver a cargar la base desde
+# cero hay que borrar el volumen:
+#   kubectl delete statefulset postgres -n punto360
+#   kubectl delete pvc datos-postgres-0 -n punto360
+#
+# La API se conecta con la DATABASE_URL del Secret punto360-secret, que debe
+# apuntar a este Service:
+#   postgresql+psycopg://postgres:<POSTGRES_PASSWORD>@postgres:5432/proyecto_nube
+
+# Service sin IP propia (headless): da el nombre DNS "postgres" al pod del
+# StatefulSet. Solo se usa dentro del clúster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: punto360
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: punto360
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            # El usuario debe ser postgres: schema.sql asigna los objetos a ese
+            # dueño (ALTER ... OWNER TO postgres).
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_DB
+              value: proyecto_nube
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: punto360-secret
+                  key: POSTGRES_PASSWORD
+            # Subcarpeta dentro del volumen: algunos discos traen lost+found en
+            # la raíz y postgres se niega a inicializar una carpeta no vacía.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: datos
+              mountPath: /var/lib/postgresql/data
+            - name: db-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          # Listo cuando acepta conexiones a la base del proyecto.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "proyecto_nube"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: db-init
+          configMap:
+            name: db-init
+  # Kubernetes crea un PersistentVolumeClaim por réplica (datos-postgres-0).
+  # En Docker Desktop lo atiende la clase de almacenamiento por defecto (hostpath).
+  volumeClaimTemplates:
+    - metadata:
+        name: datos
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
