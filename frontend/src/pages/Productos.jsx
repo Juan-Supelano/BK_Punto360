@@ -321,14 +321,17 @@ export default function Productos() {
           />
           Solo stock bajo
         </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={incluirInactivos}
-            onChange={(e) => setIncluirInactivos(e.target.checked)}
-          />
-          Ver inactivos
-        </label>
+        {/* Los inactivos solo le sirven al ADMIN, que es quien puede reactivarlos. */}
+        {esAdmin && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={incluirInactivos}
+              onChange={(e) => setIncluirInactivos(e.target.checked)}
+            />
+            Ver inactivos
+          </label>
+        )}
       </div>
 
       <div className="tabla-envoltura">

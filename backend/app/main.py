@@ -6,6 +6,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.almacenamiento import CARPETA_ESTATICOS, CARPETA_FOTOS
 from app.config import settings
 from app.models import (  # noqa: F401
+    AuditoriaCambio,
     Categoria,
     Cliente,
     Comercio,
@@ -19,6 +20,7 @@ from app.models import (  # noqa: F401
     VentaItem,
 )
 from app.routers import (
+    auditoria,
     auth,
     categorias,
     clientes,
@@ -70,6 +72,7 @@ app.include_router(ventas.router)
 app.include_router(perfil.router)
 app.include_router(usuarios.router)
 app.include_router(prediccion.router)
+app.include_router(auditoria.router)
 
 
 @app.get("/", tags=["Estado"])

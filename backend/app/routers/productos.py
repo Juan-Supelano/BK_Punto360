@@ -6,6 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app import auditoria
 from app.database import get_db
 from app.models import Categoria, MovimientoInventario, Producto, Usuario, Venta
 from app.models.producto import UNIDADES
@@ -258,8 +259,10 @@ def actualizar(
     if cambios.get("codigo_barras"):
         validar_codigo_libre(db, cambios["codigo_barras"], excepto_id=producto.id)
 
+    antes = auditoria.foto(producto, auditoria.CAMPOS_PRODUCTO)
     for campo, valor in cambios.items():
         setattr(producto, campo, valor)
+    auditoria.registrar(db, usuario, "producto", producto, antes, auditoria.CAMPOS_PRODUCTO)
 
     db.commit()
     db.refresh(producto)
@@ -313,6 +316,8 @@ def desactivar(
 ):
     """Solo ADMIN. No borra el registro: lo marca como inactivo."""
     producto = _buscar(db, producto_id)
+    if producto.activo:
+        auditoria.anotar(db, admin, "producto", producto, "activo", "Sí", "No")
     producto.activo = False
     db.commit()
     db.refresh(producto)
@@ -327,6 +332,8 @@ def reactivar(
 ):
     """Solo ADMIN."""
     producto = _buscar(db, producto_id)
+    if not producto.activo:
+        auditoria.anotar(db, admin, "producto", producto, "activo", "No", "Sí")
     producto.activo = True
     db.commit()
     db.refresh(producto)

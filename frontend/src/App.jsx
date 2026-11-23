@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { urlFoto } from './api.js'
 import { useAuth } from './auth.jsx'
+import Auditoria from './pages/Auditoria.jsx'
 import CambiarPasswordObligatorio from './pages/CambiarPasswordObligatorio.jsx'
 import Categorias from './pages/Categorias.jsx'
 import Clientes from './pages/Clientes.jsx'
@@ -27,6 +28,7 @@ const VISTAS = [
   { clave: 'compras', titulo: 'Compras', icono: '↧', rol: 'ADMIN' },
   { clave: 'clientes', titulo: 'Clientes', icono: '☻', rol: null },
   { clave: 'usuarios', titulo: 'Usuarios', icono: '⨁', rol: 'ADMIN' },
+  { clave: 'auditoria', titulo: 'Auditoría', icono: '◷', rol: 'ADMIN' },
   { clave: 'perfil', titulo: 'Mi perfil', icono: '☺', rol: null },
   { clave: 'empresa', titulo: 'Mi empresa', icono: '⌂', rol: null },
 ]
@@ -150,6 +152,7 @@ export default function App() {
         {activa === 'compras' && esAdmin && <Compras />}
         {activa === 'clientes' && <Clientes />}
         {activa === 'usuarios' && esAdmin && <Usuarios />}
+        {activa === 'auditoria' && esAdmin && <Auditoria />}
         {activa === 'perfil' && <Perfil />}
         {activa === 'empresa' && <Empresa />}
       </main>
