@@ -508,6 +508,7 @@ CREATE TABLE public.producto (
     nombre character varying(150) NOT NULL,
     descripcion text,
     precio_venta numeric(12,2) NOT NULL,
+    codigo_barras character varying(50),
     costo numeric(12,2) DEFAULT 0 NOT NULL,
     iva_pct numeric(5,2) DEFAULT 19.00 NOT NULL,
     stock_actual integer DEFAULT 0 NOT NULL,
@@ -1323,6 +1324,13 @@ CREATE INDEX idx_mov_venta ON public.movimiento_inventario USING btree (venta_id
 --
 
 CREATE INDEX idx_producto_activo ON public.producto USING btree (activo);
+
+
+--
+-- Name: uq_producto_codigo_barras; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX uq_producto_codigo_barras ON public.producto USING btree (codigo_barras) WHERE (codigo_barras IS NOT NULL);
 
 
 --

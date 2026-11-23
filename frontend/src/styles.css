@@ -699,6 +699,18 @@ tbody tr:hover {
   z-index: 30;
 }
 
+/* Código de barras: discreto, debajo del nombre (HU-30). */
+.codigo-barras {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 11px;
+  color: var(--texto-sutil);
+}
+
+.sug-nombre .codigo-barras {
+  display: block;
+  line-height: 1.2;
+}
+
 /* El marcado con las flechas se nota aunque esté sin stock. */
 .sugerencia.activa {
   box-shadow: inset 3px 0 0 var(--primario);

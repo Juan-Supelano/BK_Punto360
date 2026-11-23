@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { mayusculaInicial } from '../texto.js'
+import { mayusculaInicial, sinEnviarConEnter } from '../texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
 
 const VACIO = {
   sku: '',
+  codigo_barras: '',
   nombre: '',
   descripcion: '',
   precio_venta: '',
@@ -158,6 +159,7 @@ export default function Productos() {
   function abrirEdicion(p) {
     setFormulario({
       sku: p.sku,
+      codigo_barras: p.codigo_barras ?? '',
       nombre: p.nombre,
       descripcion: p.descripcion ?? '',
       precio_venta: String(p.precio_venta),
@@ -184,6 +186,8 @@ export default function Productos() {
     evento.preventDefault()
     const datos = {
       nombre: formulario.nombre.trim(),
+      // Vacío se manda como "" para que, al editar, se pueda quitar el código.
+      codigo_barras: formulario.codigo_barras.trim(),
       descripcion: formulario.descripcion.trim() || null,
       precio_venta: Number(formulario.precio_venta),
       costo: Number(formulario.costo || 0),
@@ -428,6 +432,7 @@ export default function Productos() {
             className="modal"
             onClick={(e) => e.stopPropagation()}
             onSubmit={guardar}
+            onKeyDown={sinEnviarConEnter}
           >
             <h3>{editandoId ? 'Editar producto' : 'Nuevo producto'}</h3>
 
@@ -460,6 +465,16 @@ export default function Productos() {
                         categoriaElegida ? ` con el prefijo ${categoriaElegida.prefijo_sku}` : ''
                       }.`}
                 </small>
+              </label>
+
+              <label className="campo campo-completo">
+                <span>Código de barras (opcional)</span>
+                <input
+                  className="mono-entrada"
+                  maxLength={50}
+                  placeholder="Escanéalo con el lector o escríbelo"
+                  {...campo('codigo_barras')}
+                />
               </label>
 
               <label className="campo campo-completo">

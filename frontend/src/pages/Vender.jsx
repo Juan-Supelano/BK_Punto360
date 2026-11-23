@@ -3,7 +3,7 @@ import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import ClienteRapido from '../ClienteRapido.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
-import { buscarProductos } from '../texto.js'
+import { buscarProductos, pareceCodigo, productoExacto } from '../texto.js'
 
 const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO']
 
@@ -203,7 +203,17 @@ export default function Vender() {
       setActivo((i) => (i - 1 + total) % total)
     } else if (evento.key === 'Enter') {
       evento.preventDefault()
-      if (total > 0) agregar(coincidencias[Math.min(activo, total - 1)])
+      // Primero el código de barras o SKU exacto (lo que manda un lector).
+      const exacto = productoExacto(productos, texto)
+      if (exacto) {
+        agregar(exacto)
+      } else if (pareceCodigo(texto)) {
+        setError(`Código no registrado: ${texto.trim()}`)
+        setTexto('')
+        setActivo(0)
+      } else if (total > 0) {
+        agregar(coincidencias[Math.min(activo, total - 1)])
+      }
     } else if (evento.key === 'Escape') {
       setTexto('')
       setActivo(0)
@@ -261,7 +271,7 @@ export default function Vender() {
         <div>
           <h2>Vender</h2>
           <p className="sutil">
-            Busca por nombre o SKU, muévete con las flechas ↑ ↓ y presiona Enter para agregar
+            Escanea el código o busca por nombre o SKU; muévete con ↑ ↓ y presiona Enter para agregar
           </p>
         </div>
         {carrito.length > 0 && (
@@ -287,7 +297,7 @@ export default function Vender() {
               ref={buscador}
               type="search"
               autoFocus
-              placeholder="Buscar producto…"
+              placeholder="Escanea o escribe nombre / SKU…"
               value={texto}
               onChange={(e) => {
                 setTexto(e.target.value)
@@ -311,7 +321,10 @@ export default function Vender() {
                       disabled={p.stock_actual <= 0}
                     >
                       <span className="mono">{p.sku}</span>
-                      <span className="sug-nombre">{p.nombre}</span>
+                      <span className="sug-nombre">
+                        {p.nombre}
+                        {p.codigo_barras && <small className="codigo-barras">{p.codigo_barras}</small>}
+                      </span>
                       <span className="sug-stock">
                         {p.stock_actual > 0 ? `${p.stock_actual} disp.` : 'sin stock'}
                       </span>
@@ -339,7 +352,12 @@ export default function Vender() {
                   <tr key={l.producto.id}>
                     <td>
                       <strong>{l.producto.nombre}</strong>
-                      <div className="sutil mono">{l.producto.sku}</div>
+                      <div className="sutil mono">
+                        {l.producto.sku}
+                        {l.producto.codigo_barras && (
+                          <span className="codigo-barras"> · {l.producto.codigo_barras}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="derecha">
                       {pesos.format(Number(l.producto.precio_venta))}
