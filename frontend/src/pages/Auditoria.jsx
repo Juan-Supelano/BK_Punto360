@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
+import Paginacion, { POR_PAGINA } from '../Paginacion.jsx'
 
 /**
  * Registro de auditoría (HU-32). Solo ADMIN.
@@ -31,7 +32,6 @@ const CAMPOS = {
 
 // Los cambios con los que se podría robar se resaltan.
 const SENSIBLES = new Set(['codigo_barras', 'precio_venta', 'rol', 'contrasena'])
-const POR_PAGINA = 50
 
 const fechaHora = new Intl.DateTimeFormat('es-CO', {
   day: '2-digit',
@@ -197,7 +197,9 @@ export default function Auditoria() {
                   </td>
                   <td>
                     <span className={SENSIBLES.has(c.campo) ? 'etiqueta nivel-advertencia' : ''}>
-                      {CAMPOS[c.campo] || c.campo}
+                      {c.campo === 'iva_pct' && c.entidad === 'producto'
+                        ? 'IVA'
+                        : CAMPOS[c.campo] || c.campo}
                     </span>
                   </td>
                   <td className="auditoria-antes">{valor(c.campo, c.valor_antes)}</td>
@@ -216,27 +218,7 @@ export default function Auditoria() {
         </table>
       </div>
 
-      {datos.total > POR_PAGINA && (
-        <div className="paginacion">
-          <button
-            className="btn btn-suave"
-            disabled={pagina <= 1}
-            onClick={() => setPagina((p) => p - 1)}
-          >
-            ← Anterior
-          </button>
-          <span className="sutil">
-            Página {pagina} de {paginas} · {datos.total} cambios
-          </span>
-          <button
-            className="btn btn-suave"
-            disabled={pagina >= paginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            Siguiente →
-          </button>
-        </div>
-      )}
+      <Paginacion pagina={pagina} paginas={paginas} total={datos.total} setPagina={setPagina} />
     </section>
   )
 }

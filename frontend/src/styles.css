@@ -547,8 +547,75 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 14px;
-  margin-top: 14px;
+  margin: 14px 0;
+}
+
+/* Ventas del administrador: título, resumen y filtros quedan fijos arriba
+   mientras se desplazan las ventas por cajero y la tabla. El margen negativo
+   tapa el relleno superior de .contenido para que nada asome por encima. */
+.cabecera-fija {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: -28px -32px 0;
+  padding: 28px 32px 2px;
+  background: var(--fondo);
+}
+
+/* Sin línea ni sombra: al quedar pegada arriba, la tabla se desvanece bajo un
+   degradado del mismo color del fondo. */
+.cabecera-fija::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 22px;
+  background: linear-gradient(to bottom, var(--fondo), rgba(244, 245, 247, 0));
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.cabecera-fija.pegada::after {
+  opacity: 1;
+}
+
+/* Paginación dentro de la barra de filtros fija: a la derecha. */
+.paginacion-barra {
+  margin: 0 0 0 auto;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.paginacion-barra .btn {
+  padding: 5px 12px;
+  min-width: 38px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Tabla con alto máximo (compra sugerida): muestra 10 filas, el resto con su
+   propio scroll. El encabezado y el total quedan fijos. Al llegar al final de
+   la tabla, la rueda sigue bajando la página. */
+.tabla-limitada {
+  max-height: var(--alto-max, none);
+  overflow-y: auto;
+}
+
+.tabla-limitada thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tabla-limitada tfoot td {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--borde);
 }
 
 /* --- Compras: líneas de la factura ---------------------------------------- */
@@ -1085,7 +1152,20 @@ tbody tr:hover {
   /* El @page general es para el rollo de 80 mm; el informe usa su propia
      página con márgenes normales. */
   @page informe {
-    margin: 12mm 10mm;
+    margin: 12mm 10mm 14mm;
+
+    /* Pie en todas las hojas. */
+    @bottom-left {
+      content: 'Generado con Punto360\00AE  \00B7  Sistema POS';
+      font-size: 8.5px;
+      color: #555;
+    }
+
+    @bottom-right {
+      content: 'Página ' counter(page) ' de ' counter(pages);
+      font-size: 8.5px;
+      color: #555;
+    }
   }
 
   .informe-print {
@@ -1222,10 +1302,6 @@ tbody tr:hover {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-  }
-
-  .inf-software {
-    white-space: nowrap;
   }
 }
 
@@ -1723,24 +1799,304 @@ tbody tr:hover {
   }
 }
 
-@media (max-width: 760px) {
+/* Casilla pequeña debajo de un campo (precio con IVA en productos). */
+.check-chico {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* Barra del celular y velo del menú: ocultos en el computador. */
+.barra-movil,
+.velo-menu,
+.barra-cobro-movil {
+  display: none;
+}
+
+/* --- Celular (HU-33): todo lo de aquí abajo solo aplica bajo 760 px ------- */
+@media screen and (max-width: 760px) {
   .disposicion {
     grid-template-columns: 1fr;
   }
 
-  .lateral {
-    position: static;
-    height: auto;
+  /* Barra de arriba con ☰, logo y el nombre de la vista. */
+  .barra-movil {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    padding: 8px 12px;
+    background: var(--lateral);
+    color: #fff;
   }
 
-  .lateral-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    margin: 14px 0;
+  .barra-movil .producto-logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .barra-movil-titulo {
+    font-size: 16px;
+  }
+
+  .btn-menu {
+    font-size: 20px;
+    padding: 4px 12px;
+  }
+
+  /* El menú lateral sale desde la izquierda. */
+  .lateral {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: min(280px, 85vw);
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    overflow-y: auto;
+  }
+
+  .lateral.abierto {
+    transform: translateX(0);
+  }
+
+  .velo-menu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(16, 24, 40, 0.45);
   }
 
   .contenido {
-    padding: 20px 16px 48px;
+    padding: 16px 12px 96px;
+  }
+
+  /* Letra de 16 px en los campos (iPhone no hace zoom) y botones cómodos. */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .btn,
+  .nav-item {
+    min-height: 44px;
+  }
+
+  .titulo-vista {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .titulo-vista h2 {
+    font-size: 20px;
+  }
+
+  .barra-filtros > * {
+    flex: 1 1 100%;
+  }
+
+  .barra-filtros .check,
+  .barra-filtros .campo-inline {
+    flex: 1 1 auto;
+  }
+
+  .tarjetas-resumen,
+  .panel-cajeros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Tablas como tarjetas: una por fila, con "ETIQUETA  valor" (las
+     etiquetas las pone etiquetarTablas() en interfaz.js). */
+  .contenido .tabla-envoltura {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .contenido table thead {
+    display: none;
+  }
+
+  .contenido table,
+  .contenido tbody,
+  .contenido tfoot,
+  .contenido tr,
+  .contenido td {
+    display: block;
+    width: 100%;
+  }
+
+  /* En el celular la cabecera de Ventas no queda fija (ocuparía la pantalla)
+     y la compra sugerida se muestra completa, sin scroll interno. */
+  .cabecera-fija {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
+
+  .cabecera-fija::after {
+    display: none;
+  }
+
+  .paginacion-barra {
+    margin: 0;
+    justify-content: space-between;
+  }
+
+  .tabla-limitada {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .tabla-limitada tfoot td {
+    position: static;
+  }
+
+  .contenido tbody tr,
+  .contenido tfoot tr {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    margin-bottom: 10px;
+    padding: 6px 12px;
+  }
+
+  .contenido td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--borde);
+    text-align: right;
+  }
+
+  .contenido tbody tr td:last-child {
+    border-bottom: 0;
+  }
+
+  .contenido td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 45%;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-sutil);
+    text-align: left;
+  }
+
+  .contenido td[data-label='']::before {
+    display: none;
+  }
+
+  .contenido td[data-label=''],
+  .contenido td.acciones {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .contenido td.celda-vacia {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .contenido td input:not([type='checkbox']),
+  .contenido td select {
+    max-width: 60%;
+  }
+
+  .contenido .buscador-producto,
+  .contenido .buscador-producto input {
+    width: 100%;
+    max-width: 100% !important;
+  }
+
+  .buscador-producto .sugerencias {
+    min-width: 0;
+  }
+
+  /* Ventanas emergentes a pantalla completa. */
+  .fondo-modal {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  .modal,
+  .modal-ancho,
+  .modal-angosto,
+  .escaner {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    min-height: 100dvh;
+    border-radius: 0;
+    padding: 18px 14px 24px;
+  }
+
+  .modal-pie {
+    position: sticky;
+    bottom: 0;
+    background: var(--superficie);
+    padding-top: 10px;
+  }
+
+  /* Vender: buscador fijo arriba y barra de cobro fija abajo. */
+  .pos {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-buscador {
+    position: sticky;
+    top: 50px;
+    z-index: 10;
+  }
+
+  .barra-cobro-movil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 14;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: var(--superficie);
+    border-top: 1px solid var(--borde);
+    box-shadow: 0 -4px 14px rgba(16, 24, 40, 0.08);
+  }
+
+  .barra-cobro-movil div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .barra-cobro-movil strong {
+    font-size: 20px;
+  }
+
+  .barra-cobro-movil .btn {
+    flex: 0 0 45%;
+  }
+
+  .cajero-fila {
+    grid-template-columns: 1fr auto;
+  }
+
+  .cajero-barra {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .rejilla-form,

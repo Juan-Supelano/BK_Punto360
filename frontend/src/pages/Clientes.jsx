@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
+import Paginacion, { usePaginacion } from '../Paginacion.jsx'
 import { mayusculaInicial } from '../texto.js'
 
 const TIPOS_DOC = ['CC', 'NIT', 'CE', 'TI', 'PAS']
@@ -50,6 +51,8 @@ export default function Clientes() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  const pag = usePaginacion(clientes, `${busqueda}|${incluirInactivos}`)
 
   function abrirNuevo() {
     setFormulario(VACIO)
@@ -178,7 +181,7 @@ export default function Clientes() {
             )}
 
             {!cargando &&
-              clientes.map((c) => (
+              pag.visibles.map((c) => (
                 <tr key={c.id} className={c.activo ? '' : 'fila-inactiva'}>
                   <td className="mono">
                     {c.tipo_doc} {c.num_doc}
@@ -214,6 +217,8 @@ export default function Clientes() {
           </tbody>
         </table>
       </div>
+
+      <Paginacion {...pag} />
 
       {panelAbierto && (
         <div className="fondo-modal" onClick={cerrarPanel}>

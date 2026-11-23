@@ -197,10 +197,9 @@ export default function InformeVentas({
         </tbody>
       </table>
 
-      <p className="inf-pie">
-        Las ventas anuladas aparecen tachadas y no suman en los totales.
-        <span className="inf-software">Generado con Punto360® · Sistema POS</span>
-      </p>
+      {/* "Generado con Punto360®" y el número de página van en el pie de cada
+          hoja (@page informe en styles.css). */}
+      <p className="inf-pie">Las ventas anuladas aparecen tachadas y no suman en los totales.</p>
     </div>,
     document.body,
   )
