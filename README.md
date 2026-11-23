@@ -861,7 +861,9 @@ Con el port-forward de la API abierto (paso 3):
 python scripts/trafico.py
 ```
 
-En Grafana se ven subir el throughput, la latencia p95 y las peticiones en curso.
+Sin credenciales solo llama rutas públicas y rutas protegidas sin token (responden 401). Para incluir las consultas autenticadas, las credenciales van por variables de entorno (`PUNTO360_EMAIL` y `PUNTO360_PASSWORD`), nunca en el script; `--prediccion` agrega los cálculos del módulo predictivo, que gastan CPU. Opciones: `python scripts/trafico.py --help`.
+
+En Grafana se ven subir el throughput, la latencia p50/p95, las peticiones en curso y las respuestas por código (los 401 son las peticiones sin token). Las métricas de la API (HU-24) son `punto360_http_peticiones_total`, `punto360_http_duracion_segundos` y `punto360_http_peticiones_en_curso`.
 
 ### 6. Actualizar y apagar
 

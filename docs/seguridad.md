@@ -16,7 +16,7 @@ Mecanismo elegido: **JWT** con el esquema `Authorization: Bearer <token>`.
 | No revelar qué correos existen | Mismo mensaje y mismo costo de bcrypt si el correo no existe o la contraseña está mal. | `routers/auth.py` → `login` |
 | Contraseña temporal | Un usuario creado o restablecido por el ADMIN no puede usar la API de negocio hasta cambiarla. | `requerir_password_actualizada` |
 
-Rutas públicas (sin token): `GET /`, `GET /salud`, `GET /docs`, `GET /openapi.json`, `POST /auth/login` y `/static`.
+Rutas públicas (sin token): `GET /`, `GET /salud`, `GET /listo`, `GET /metrics`, `GET /docs`, `GET /openapi.json`, `POST /auth/login` y `/static`.
 
 La prueba `backend/tests/test_proteccion_api.py` recorre todas las rutas de escritura de la aplicación y exige 401 sin token, de modo que un endpoint nuevo sin protección hace fallar el CI. No necesita base de datos.
 
@@ -40,3 +40,18 @@ python -c "import secrets; print(secrets.token_hex(32))"
 kubectl apply -f k8s/secret.yaml
 kubectl rollout restart deployment/punto360-api -n punto360
 ```
+
+## Métricas y estado de la API (HU-24)
+
+| Criterio | Cómo se cumple | Dónde |
+|---|---|---|
+| Endpoint `/metrics` | Formato de Prometheus, leído cada 15 s por el ServiceMonitor. | `app/main.py`, `k8s/05-servicemonitor.yaml` |
+| Contador de peticiones | `punto360_http_peticiones_total{metodo, ruta, estado}` | `app/metricas.py` |
+| Latencia | Histograma `punto360_http_duracion_segundos{metodo, ruta}` | `app/metricas.py` |
+| Gauge | `punto360_http_peticiones_en_curso` | `app/metricas.py` |
+| Sin datos sensibles en las métricas | `ruta` es la plantilla (`/productos/{producto_id}`), no la URL; no hay ids, correos ni tokens en las etiquetas. Por eso `/metrics` queda sin token. Las URLs que no existen se agrupan en `sin_ruta`, así nadie puede inflar la cantidad de series pidiendo rutas inventadas. | `app/metricas.py` |
+| Readiness y liveness | `/listo` responde 200 solo si la API llega a la base (503 si no); `/salud` solo confirma que el proceso responde. `/metrics` y las dos probes no se cuentan en el tráfico. | `app/main.py`, `k8s/03-api.yaml` |
+| Dashboard | Grafana con throughput, latencia p50/p95, peticiones en curso y respuestas por código (los 401 muestran el rechazo de peticiones sin token), además de los paneles del módulo predictivo. | `monitoring/dashboard-punto360.json` |
+| Tráfico de prueba | `scripts/trafico.py`; las credenciales van por variables de entorno. | `scripts/trafico.py` |
+
+En Cloud Run `/metrics` también es público. Si se quisiera cerrar, la opción es exponerlo solo dentro del clúster o detrás de una cabecera con una llave guardada como Secret.
