@@ -356,7 +356,7 @@ El proyecto está dividido en dos partes que se comunican entre sí:
 
 Adicionalmente:
 
-- Las peticiones a rutas protegidas requieren un **token de sesión (JWT)**, obtenido al iniciar sesión en `/auth/login`.
+- Las peticiones a rutas protegidas requieren un **token de sesión (JWT)**, obtenido al iniciar sesión en `/auth/login`. Los criterios de seguridad están en [docs/seguridad.md](docs/seguridad.md).
 - La base de datos se administra con los scripts SQL de la carpeta `database/` (ver [Carpeta database](#carpeta-database)), en lugar de dejar que el backend cree las tablas automáticamente.
 - Existe un **`Dockerfile`** para empaquetar el backend como contenedor, pensado para desplegarse en un servicio como Cloud Run.
 

@@ -17,6 +17,7 @@ from app.schemas.auth import (
 from app.seguridad import (
     CREDENCIALES_INVALIDAS,
     crear_token,
+    gastar_tiempo_de_verificacion,
     solo_admin,
     usuario_actual,
     verificar,
@@ -36,7 +37,12 @@ def login(datos: LoginPeticion, db: Session = Depends(get_db)):
 
     # El mismo mensaje si el correo no existe o la contrasena esta mal:
     # no le decimos a un atacante cuales correos estan registrados.
-    if usuario is None or not verificar(datos.password, usuario.password_hash):
+    # Si el correo no existe se hace igual una verificacion bcrypt, para que
+    # el tiempo de respuesta tampoco lo revele.
+    if usuario is None:
+        gastar_tiempo_de_verificacion(datos.password)
+        raise CREDENCIALES_INVALIDAS
+    if not verificar(datos.password, usuario.password_hash):
         raise CREDENCIALES_INVALIDAS
 
     if not usuario.activo:
