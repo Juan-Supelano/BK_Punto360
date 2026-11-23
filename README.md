@@ -79,6 +79,7 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 - [Runbook de despliegue y rollback](docs/runbook.md)
 - [Retrospectiva y lecciones aprendidas](docs/retrospectiva.md)
 - [Despliegue en GCP](docs/despliegue-gcp.md)
+- [Módulo de IA predictiva](docs/ia.md)
 - API: sección [Endpoints](#endpoints) y Swagger en `/docs`
 
 ### Enlaces
@@ -92,6 +93,7 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 
 - [Descripción](#descripción)
 - [Funcionalidades](#funcionalidades)
+- [IA predictiva](#ia-predictiva)
 - [Capturas de Pantallas del Funcionamiento](#capturas-de-pantallas-del-funcionamiento)
 - [¿Por qué utilizar este proyecto?](#por-qué-utilizar-este-proyecto)
 - [Tecnologías utilizadas](#tecnologías-utilizadas)
@@ -155,6 +157,37 @@ Cuadre POS es un sistema pensado para llevar el control completo del punto de ve
 | **Autenticación y roles de usuario** | Inicio de sesión con usuario y contraseña (token JWT). Existen dos roles: **ADMIN** (gestiona el negocio, usuarios y compras) y **CAJERO** (solo puede registrar ventas). La sesión se cierra sola tras 30 minutos sin actividad en la página. |
 | **Gestión de usuarios** | El ADMIN puede crear, editar, desactivar y resetear la contraseña de otros usuarios del sistema. |
 | **Perfil y datos del comercio** | Cada usuario puede editar su propio perfil (nombre, foto), y el ADMIN puede configurar los datos del negocio (razón social, NIT, logo, resolución) que aparecen en el comprobante de venta. |
+
+---
+
+## IA predictiva
+
+El ADMIN tiene un **Informe predictivo** que se calcula con el histórico de ventas del propio sistema, sin servicios externos ni IA generativa, y que funciona sin internet:
+
+| Qué muestra | Cómo se calcula |
+|---|---|
+| **Ventas de los próximos 7, 15 o 30 días** con rango probable del 95 % | Holt-Winters (suavizamiento exponencial con tendencia amortiguada y patrón semanal) sobre el total vendido por día. Se vuelve a ajustar en cada consulta. |
+| **Error del modelo** | Backtesting: pronostica los últimos 7 días sin haberlos visto y mide MAE y MAPE. |
+| **Alertas de inventario** | Días que alcanza el stock al ritmo de venta de los últimos 30 días: crítico (≤ 3) o advertencia (≤ 7). |
+| **Compra sugerida** | Lo que se venderá durante los días a cubrir y la entrega del proveedor, más el stock mínimo, menos el stock actual. |
+| **Baja rotación y capital inmovilizado** | Probabilidad de venta a 30 días con un modelo de Poisson (ventas de 90 días), o más de 60 días sin venderse. |
+| **Ventas por mes y productividad de cajeros** | Totales de las ventas pagadas. |
+
+![Informe predictivo](docs/screenshots/ia-01-proyeccion.png)
+
+*Captura con datos de demostración.* Con los datos semilla la proyección indica que faltan días con ventas: se necesitan al menos 14.
+
+**Endpoints** (solo ADMIN; detalle en [Endpoints › IA predictiva](#ia-predictiva--prediccion)):
+
+| Método | Ruta | Parámetros |
+|---|---|---|
+| GET | `/prediccion/ventas` | `dias`: 7, 15 o 30 |
+| GET | `/prediccion/inventario` | `cobertura` (1 a 180) y `tiempo_entrega` (0 a 90) |
+| GET | `/prediccion/ventas-mensuales` | `meses` (1 a 24) |
+
+**Cómo probarlo:** en la interfaz, inicie sesión como ADMIN y abra *Informe predictivo*. En la API, abra `/docs`, autorícese con el token de `POST /auth/login` y use la sección *IA predictiva*. Las pruebas automáticas están en `backend/tests/test_prediccion.py` (`pytest tests/test_prediccion.py -q`).
+
+El problema que resuelve, por qué se eligieron estos modelos y no árboles o IA generativa, los datos que usa, la evaluación y las limitaciones están en **[docs/ia.md](docs/ia.md)**.
 
 ---
 
@@ -282,6 +315,8 @@ Módulo *Mis ventas*: cada cajero ve únicamente las ventas que él mismo regist
 | **PyJWT** | Genera y valida los tokens de sesión (autenticación). |
 | **bcrypt** | Genera el hash seguro de las contraseñas de los usuarios. |
 | **python-multipart** | Permite recibir formularios y archivos en la API (por ejemplo, fotos de perfil o del negocio). |
+| **statsmodels y NumPy** | Modelo Holt-Winters y cálculos del informe predictivo (ver [IA predictiva](#ia-predictiva)). |
+| **prometheus-client** | Publica en `/metrics` las métricas de la API y del módulo predictivo. |
 
 ### Frontend
 
@@ -315,7 +350,7 @@ Módulo *Mis ventas*: cada cajero ve únicamente las ventas que él mismo regist
 
 El proyecto está dividido en dos partes que se comunican entre sí:
 
-- **Backend (API)**: expone rutas por módulo (`/productos`, `/categorias`, `/ventas`, `/compras`, `/clientes`, `/proveedores`, `/usuarios`, `/auth`, `/perfil`). Recibe peticiones, valida la información, aplica las reglas de negocio (por ejemplo, que no se venda más stock del disponible) y se comunica con la base de datos.
+- **Backend (API)**: expone rutas por módulo (`/productos`, `/categorias`, `/ventas`, `/compras`, `/clientes`, `/proveedores`, `/usuarios`, `/auth`, `/perfil`, `/prediccion`). Recibe peticiones, valida la información, aplica las reglas de negocio (por ejemplo, que no se venda más stock del disponible) y se comunica con la base de datos.
 - **Frontend (interfaz web)**: pantallas construidas en React desde donde el usuario interactúa con el sistema: login, venta en mostrador, compras, clientes, proveedores, usuarios y un componente de recibo imprimible. Se comunica con el backend mediante peticiones HTTP.
 - **Base de datos (PostgreSQL)**: almacena de forma persistente productos, categorías, ventas, compras, clientes, proveedores, usuarios y el kardex de movimientos de inventario.
 
@@ -509,6 +544,18 @@ Cuerpo de `POST /ventas` (los precios los pone el backend):
 
 Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
+### IA predictiva — `/prediccion`
+
+Todas son solo ADMIN. Están explicadas en [docs/ia.md](docs/ia.md#9-endpoints-y-cómo-probarlo).
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/prediccion/ventas` | ADMIN | Proyección diaria del total vendido (Holt-Winters). Query: `dias` = 7, 15 o 30 (otro valor: `422`). Trae `historico` (30 días), `proyeccion` (estimado, inferior y superior por día) y `error` (MAE y MAPE del backtesting). Con menos de 14 días con ventas responde `datos_suficientes: false` |
+| GET | `/prediccion/inventario` | ADMIN | Por producto activo: demanda diaria, días restantes, nivel de alerta, compra sugerida, probabilidad de venta a 30 días y baja rotación. Query: `cobertura` (1 a 180, por defecto 15) y `tiempo_entrega` (0 a 90, por defecto 3) |
+| GET | `/prediccion/ventas-mensuales` | ADMIN | Total y número de ventas pagadas por mes. Query: `meses` (1 a 24, por defecto 12) |
+
+`GET /metrics` publica además `punto360_prediccion_calculos_total`, `punto360_prediccion_duracion_segundos` y `punto360_prediccion_mape`.
+
 ### Archivos estáticos
 
 | Método | Ruta | Descripción |
@@ -557,7 +604,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 - No existe una integración real de **facturación electrónica ante la DIAN**: solo hay campos preparados (prefijo de factura, resolución) para una futura integración.
 - El manejo de **caja** (apertura y cierre de turno) todavía no está implementado; existe un campo de referencia en las ventas, pero no se usa aún.
 - No incluye todavía versionado formal de base de datos (por ejemplo, Alembic); los cambios de esquema se administran con scripts SQL manuales.
-- Solo tiene un informe básico de ventas por periodo; no cuenta con tableros de indicadores ni funcionalidad de devoluciones.
+- Los informes disponibles son el de ventas por periodo y el informe predictivo; no hay funcionalidad de devoluciones. Las limitaciones del módulo predictivo están en [docs/ia.md](docs/ia.md#8-limitaciones-y-mejoras-posibles).
 - No hay automatización de despliegue completo en la nube: existe un `Dockerfile` para el backend, pero falta una configuración lista para producción (frontend, base de datos, variables de entorno por entorno, etc.).
 - Al ser un proyecto académico, no ha sido probado a fondo en un entorno de producción real con múltiples usuarios simultáneos.
 
@@ -569,7 +616,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
 - Integración real de **facturación electrónica** con la DIAN (hoy solo existen los campos base: resolución y prefijo de factura).
 - Implementación del **manejo de caja** (apertura, cierre y cuadre de turno).
-- Más **reportes** (productos más vendidos, valorización de inventario, etc.); hoy existe el informe de ventas por periodo.
+- Más **reportes** (valorización de inventario, devoluciones, etc.); hoy existen el informe de ventas por periodo y el informe predictivo.
 - Módulo de **devoluciones** de productos.
 - Integración de **Alembic** para el versionado de la base de datos.
 - Automatización del despliegue completo (backend, frontend y base de datos) en **Cloud Run** u otro proveedor.
