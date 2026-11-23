@@ -23,6 +23,7 @@ class ComercioLeer(BaseModel):
     # la usan para calcular; solo el ADMIN la ve y la cambia en Mi empresa.
     iva_pct: Decimal
     precio_incluye_iva: bool
+    escaneo_camara: bool
 
 
 class ComercioActualizar(BaseModel):
@@ -36,6 +37,7 @@ class ComercioActualizar(BaseModel):
     logo_url: str | None = Field(default=None, max_length=500)
     iva_pct: Decimal | None = Field(default=None, ge=0, le=100)
     precio_incluye_iva: bool | None = None
+    escaneo_camara: bool | None = None
 
 
 class UsuarioLeer(BaseModel):

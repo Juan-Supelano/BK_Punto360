@@ -370,6 +370,7 @@ CREATE TABLE public.configuracion_comercio (
     ciudad character varying(80),
     iva_pct numeric(5,2) DEFAULT 19 NOT NULL,
     precio_incluye_iva boolean DEFAULT true NOT NULL,
+    escaneo_camara boolean DEFAULT false NOT NULL,
     CONSTRAINT ck_config_fila_unica CHECK ((id = 1)),
     CONSTRAINT ck_config_iva CHECK (((iva_pct >= (0)::numeric) AND (iva_pct <= (100)::numeric)))
 );

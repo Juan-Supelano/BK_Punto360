@@ -72,7 +72,7 @@ def actualizar_comercio(
 
     cambios = datos.model_dump(exclude_unset=True)
     # Estos dos no admiten vacio: si llegan en null se dejan como estaban.
-    for obligatorio in ("iva_pct", "precio_incluye_iva"):
+    for obligatorio in ("iva_pct", "precio_incluye_iva", "escaneo_camara"):
         if cambios.get(obligatorio, 0) is None:
             cambios.pop(obligatorio)
 

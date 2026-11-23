@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import EscanerCamara from '../EscanerCamara.jsx'
 import { mayusculaInicial, sinEnviarConEnter } from '../texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
@@ -55,6 +56,9 @@ function nombreMovimiento(m) {
 export default function Productos() {
   const { usuario } = useAuth()
   const esAdmin = usuario?.rol === 'ADMIN'
+  // Botón de cámara junto al código de barras, si el ADMIN lo activó.
+  const camara = Boolean(usuario?.comercio?.escaneo_camara)
+  const [escaneando, setEscaneando] = useState(false)
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [filtroCategoria, setFiltroCategoria] = useState('')
@@ -469,12 +473,25 @@ export default function Productos() {
 
               <label className="campo campo-completo">
                 <span>Código de barras (opcional)</span>
-                <input
-                  className="mono-entrada"
-                  maxLength={50}
-                  placeholder="Escanéalo con el lector o escríbelo"
-                  {...campo('codigo_barras')}
-                />
+                <div className="campo-con-boton">
+                  <input
+                    className="mono-entrada"
+                    maxLength={50}
+                    placeholder="Escanéalo con el lector o escríbelo"
+                    {...campo('codigo_barras')}
+                  />
+                  {camara && (
+                    <button
+                      type="button"
+                      className="btn btn-suave btn-camara"
+                      title="Escanear con la cámara"
+                      aria-label="Escanear con la cámara"
+                      onClick={() => setEscaneando(true)}
+                    >
+                      📷
+                    </button>
+                  )}
+                </div>
               </label>
 
               <label className="campo campo-completo">
@@ -615,6 +632,13 @@ export default function Productos() {
             </div>
           </div>
         </div>
+      )}
+      {escaneando && (
+        <EscanerCamara
+          titulo="Escanear código del producto"
+          onLeido={(codigo) => setFormulario((f) => ({ ...f, codigo_barras: codigo }))}
+          onCerrar={() => setEscaneando(false)}
+        />
       )}
     </section>
   )

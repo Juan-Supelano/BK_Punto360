@@ -36,6 +36,9 @@ class Comercio(Base):
     # Valor por defecto de la casilla "los precios ya incluyen IVA" en ventas
     # y compras. Cada venta o compra puede cambiarlo solo para ella.
     precio_incluye_iva: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Muestra los botones de escanear con la camara (HU-31). Apagado por
+    # defecto: lo normal es un lector de codigos, que funciona siempre.
+    escaneo_camara: Mapped[bool] = mapped_column(Boolean, nullable=False)
     actualizado_en: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
