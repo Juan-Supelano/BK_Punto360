@@ -19,6 +19,12 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 if TEST_DATABASE_URL:
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
+# Las credenciales no tienen valor por defecto en app/config.py (HU-23). Para
+# las pruebas que no tocan la base basta una URL que nunca se abre y una llave
+# de prueba; si el entorno ya trae valores (CI o .env), se respetan.
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://pruebas@localhost:1/sin_base")
+os.environ.setdefault("JWT_SECRETO", "llave-local-de-pruebas-sin-valor-real-0001")
+
 PASSWORD = "PruebaSegura123"
 
 

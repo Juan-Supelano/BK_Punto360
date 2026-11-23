@@ -68,6 +68,7 @@ Resumen de [docs/metricas.md](docs/metricas.md), generado con `metricas.py`:
 ```bash
 git clone https://github.com/Juan-Supelano/BK_Punto360.git
 cd BK_Punto360
+cp .env.example .env    # Windows: copy .env.example .env  -> y cambia los dos valores
 docker compose up --build
 ```
 
@@ -651,6 +652,7 @@ cd Punto360
 
 1. Copia `backend/.env.example` como `backend/.env`.
 2. Reemplaza `TU_CONTRASENA` por la contraseña de tu usuario de PostgreSQL.
+3. Pon en `JWT_SECRETO` un valor aleatorio de al menos 32 caracteres (`python -c "import secrets; print(secrets.token_hex(32))"`). Sin `DATABASE_URL` o sin un `JWT_SECRETO` válido la API no arranca.
 
 **Frontend:**
 
