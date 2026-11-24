@@ -6,13 +6,215 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "15s",
   "time": {
     "from": "now-1h",
     "to": "now"
   },
   "panels": [
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "API: peticiones por segundo (throughput)",
+      "description": "HU-24. Peticiones atendidas por segundo, por ruta, sumando todas las réplicas. Sin /metrics ni las probes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(punto360_http_peticiones_total[1m]))",
+          "legendFormat": "Total"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (ruta) (rate(punto360_http_peticiones_total[1m]))",
+          "legendFormat": "{{ruta}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "API: latencia p50 y p95",
+      "description": "HU-24. Tiempo de respuesta de la API (histograma punto360_http_duracion_segundos).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(punto360_http_duracion_segundos_bucket[1m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(punto360_http_duracion_segundos_bucket[1m])))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "API: peticiones en curso",
+      "description": "HU-24. Gauge punto360_http_peticiones_en_curso: peticiones que cada réplica está atendiendo en este momento.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (pod) (punto360_http_peticiones_en_curso)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "API: respuestas por código (401 = sin token)",
+      "description": "HU-22 y HU-24. Respuestas por segundo según el código HTTP. Los 401 muestran las peticiones rechazadas por falta de token.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (estado) (rate(punto360_http_peticiones_total[1m]))",
+          "legendFormat": "HTTP {{estado}}"
+        }
+      ]
+    },
     {
       "id": 1,
       "type": "timeseries",
@@ -26,7 +228,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 16
       },
       "fieldConfig": {
         "defaults": {
@@ -72,7 +274,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 16
       },
       "fieldConfig": {
         "defaults": {
