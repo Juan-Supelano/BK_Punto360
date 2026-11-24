@@ -7,6 +7,9 @@ venv/
 # Entorno (contiene contrasenas: nunca subir)
 .env
 
+# Secret de Kubernetes con valores reales (se crea desde k8s/secret.example.yaml)
+k8s/secret.yaml
+
 # Node
 node_modules/
 dist/
