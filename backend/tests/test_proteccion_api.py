@@ -12,7 +12,6 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -25,13 +24,16 @@ PUBLICAS = {("POST", "/auth/login")}
 
 
 def _rutas_de_escritura() -> list[tuple[str, str]]:
+    # Se leen del esquema OpenAPI y no de app.routes: desde FastAPI 0.16x los
+    # routers incluidos ya no quedan aplanados en app.routes, y el esquema es la
+    # vista pública de todas las rutas con su prefijo en cualquier versión.
     rutas = []
-    for ruta in app.routes:
-        if isinstance(ruta, APIRoute):
-            for metodo in sorted(ruta.methods & ESCRITURA):
-                if (metodo, ruta.path) not in PUBLICAS:
-                    rutas.append((metodo, ruta.path))
-    return rutas
+    for path, operaciones in app.openapi()["paths"].items():
+        for metodo in operaciones:
+            metodo = metodo.upper()
+            if metodo in ESCRITURA and (metodo, path) not in PUBLICAS:
+                rutas.append((metodo, path))
+    return sorted(rutas)
 
 
 def _url(path: str) -> str:
