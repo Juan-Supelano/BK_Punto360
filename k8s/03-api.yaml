@@ -24,11 +24,8 @@ spec:
       containers:
         - name: api
           image: ghcr.io/juan-supelano/punto360-api:latest
-          # Con la etiqueta latest, Always hace que cada reinicio traiga la
-          # última imagen publicada.
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
-            # El Dockerfile del backend escucha en 8080 (variable PORT).
             - name: http
               containerPort: 8080
           envFrom:
@@ -45,8 +42,6 @@ spec:
                 secretKeyRef:
                   name: punto360-secret
                   key: JWT_SECRETO
-            # Clave del modelo de IA (HU-25). Opcional: sin ella la API arranca
-            # igual y solo el asistente responde 503.
             - name: IA_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -56,17 +51,19 @@ spec:
           readinessProbe:
             httpGet:
               path: /listo
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /salud
-              port: http
-            initialDelaySeconds: 15
+              port: 8080
+            initialDelaySeconds: 30
             periodSeconds: 20
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests:
               cpu: 100m
@@ -75,10 +72,6 @@ spec:
               cpu: 500m
               memory: 256Mi
 ---
-# Service interno de la API. Desde el equipo se abre con:
-#   kubectl port-forward -n punto360 svc/punto360-api 8000:8080
-# El puerto se llama "http": así lo busca el ServiceMonitor (05-servicemonitor.yaml)
-# para leer /metrics.
 apiVersion: v1
 kind: Service
 metadata:
