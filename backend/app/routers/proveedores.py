@@ -12,12 +12,11 @@ from app.schemas.proveedor import (
 from app.seguridad import requerir_password_actualizada, solo_admin
 from app.texto import columna_plana, patron
 
-# Consultar proveedores: cualquiera con sesion, tambien el cajero.
-# Crear, editar y desactivar: solo ADMIN (se declara en cada endpoint).
+# Todo el modulo de proveedores es solo para ADMIN: el cajero no lo ve.
 router = APIRouter(
     prefix="/proveedores",
     tags=["Proveedores"],
-    dependencies=[Depends(requerir_password_actualizada)],
+    dependencies=[Depends(requerir_password_actualizada), Depends(solo_admin)],
 )
 
 

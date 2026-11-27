@@ -212,13 +212,22 @@ def crear(
             )
         preparadas.append((producto, linea.cantidad))
 
+    # Cada producto tiene su IVA (lo deja la ultima compra). La casilla de
+    # "precio con IVA" llega de la pantalla; si no llega, vale Mi empresa.
+    comercio = cajero.comercio
+    incluye_iva = (
+        comercio.precio_incluye_iva
+        if datos.precio_incluye_iva is None
+        else datos.precio_incluye_iva
+    )
+
     venta = Venta(
         cliente_id=datos.cliente_id,
         subtotal=Decimal("0"),
         total_iva=Decimal("0"),
         total=Decimal("0"),
         metodo_pago=datos.metodo_pago,
-        precio_incluye_iva=datos.precio_incluye_iva,
+        precio_incluye_iva=incluye_iva,
         estado="PAGADA",
         observaciones=datos.observaciones,
         usuario_id=cajero.id,
@@ -234,7 +243,7 @@ def crear(
         precio = Decimal(producto.precio_venta)
         iva_pct = Decimal(producto.iva_pct)
         sub_linea, iva_linea, total_linea = desglosar(
-            precio, cantidad, iva_pct, datos.precio_incluye_iva
+            precio, cantidad, iva_pct, incluye_iva
         )
 
         db.add(

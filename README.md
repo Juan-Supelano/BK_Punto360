@@ -14,18 +14,17 @@ Sistema de punto de venta (POS) para la gestión de productos, inventario, venta
 
 ## Gestión colaborativa del proyecto
 
-Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, migrando por historias de usuario un POS que ya funcionaba.
+Punto360 se desarrolló en equipo con GitHub Projects, Kanban y cinco sprints: en los tres primeros (Proyecto 2) se migró por historias de usuario un POS que ya funcionaba, y en los dos últimos (Proyecto 3) se agregaron Kubernetes, monitoreo, seguridad, la IA predictiva y mejoras de uso.
 
 ### Equipo de desarrollo
 
 | Rol | Integrante | Historias |
 | --- | --- | --- |
-| Product Owner | [POR COMPLETAR] | — |
-| Backend y base de datos | @paulatatian | HU-01, 02, 07, 08, 13, 14 |
-| Frontend | @pipereinaa | HU-03, 04, 09, 10, 15, 16 |
-| DevOps y documentación | @Juan-Supelano | HU-05, 06, 11, 12, 17, 18 |
+| Product Owner, DevOps y documentación | @Juan-Supelano | HU-05, 06, 11, 12, 17, 18 · HU-25, 26, 27 · HU-28 a HU-33 |
+| Backend y base de datos | @paulatatian | HU-01, 02, 07, 08, 13, 14 · HU-19, 20, 21 |
+| Frontend | @pipereinaa | HU-03, 04, 09, 10, 15, 16 · HU-22, 23, 24 |
 
-@Juan-Supelano revisa y aprueba los PR; los suyos los revisa @paulatatian.
+@Juan-Supelano revisa y aprueba los PR; los suyos los revisó @paulatatian en el Proyecto 2 y @pipereinaa en el Proyecto 3.
 
 ### Arquitectura
 
@@ -33,13 +32,16 @@ Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, mi
 - **Backend:** FastAPI (Python 3.12), SQLAlchemy, JWT
 - **Base de datos:** PostgreSQL 16 (Cloud SQL)
 - **Infraestructura:** Google Cloud Platform (Cloud Run, Cloud SQL, Secret Manager, Artifact Registry)
-- **CI/CD:** GitHub Actions (`ci.yml`, `deploy.yml`, `project-automation.yml`) y Cloud Build
-- **Contenedores:** Docker y docker compose
+- **Orquestación:** Kubernetes (`k8s/`): API con 2 réplicas, frontend, PostgreSQL en StatefulSet, ConfigMap y Secret
+- **Monitoreo:** Prometheus y Grafana dentro del clúster (kube-prometheus-stack), con métricas en `/metrics`
+- **IA:** módulo predictivo local con statsmodels (Holt-Winters) y Poisson, sin servicios externos ([docs/ia.md](docs/ia.md))
+- **CI/CD:** GitHub Actions (`ci.yml`, `deploy.yml`, `imagenes.yml`, `project-automation.yml`) y Cloud Build
+- **Contenedores:** Docker y docker compose; imágenes publicadas en GitHub Container Registry
 
 ### Metodología
 
 - **Tablero:** Backlog → Ready → In Progress → Review → Done, con campos Sprint, Responsable, Prioridad, Estimación y Tipo.
-- **Historias:** 18, seis por integrante y dos por sprint, con criterios de aceptación como casillas.
+- **Historias:** 33 en cinco sprints, con criterios de aceptación como casillas. Proyecto 2: HU-01 a HU-18, seis por integrante. Proyecto 3: HU-19 a HU-33.
 - **Ramas:** `main`, `produccion`, `preproduccion` y `desarrollo`. Cada HU sale de `desarrollo` en una rama `feature/HU-XX-...` y vuelve por PR con revisión.
 - **Commits:** `feat(HU-XX): descripción`, con `Refs #N` al issue de la HU.
 - **Automatización:** al asignar un issue la tarjeta pasa a In Progress; al abrir el PR, a Review; al fusionarlo, a Done y el issue se cierra.
@@ -51,23 +53,28 @@ Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, mi
 | Sprint 1 | Fundamentos | HU-01 Esquema y datos semilla · HU-02 API base · HU-03 Proyecto React · HU-04 Login · HU-05 Docker · HU-06 CI |
 | Sprint 2 | Funcionalidad principal | HU-07 JWT y roles · HU-08 API de catálogo e inventario · HU-09 Pantallas de catálogo · HU-10 Clientes y perfil · HU-11 Pruebas · HU-12 Cloud SQL |
 | Sprint 3 | Ventas, despliegue y cierre | HU-13 API de ventas · HU-14 Usuarios · HU-15 Punto de venta · HU-16 Estabilización · HU-17 Despliegue · HU-18 Documentación |
+| Sprint 4 | Kubernetes, monitoreo, seguridad e IA | HU-19 Imágenes en GHCR · HU-20 Manifiestos de Kubernetes · HU-21 Prometheus y Grafana en el clúster · HU-22 Autenticación JWT reforzada · HU-23 Secretos fuera del código · HU-24 Métricas HTTP y tráfico de prueba · HU-25 Motor predictivo · HU-26 Informe predictivo · HU-27 Documentación de la IA |
+| Sprint 5 | Usabilidad y control | HU-28 Usabilidad del punto de venta · HU-29 IVA y permisos por rol · HU-30 Código de barras · HU-31 Escaneo con cámara · HU-32 Auditoría de cambios · HU-33 Aplicación usable en el celular |
 
 Los PR de cada historia, sus fechas y la evidencia están en [docs/metricas.md](docs/metricas.md) y en el [tablero](https://github.com/users/Juan-Supelano/projects/5).
 
 ### Métricas
 
-Resumen de [docs/metricas.md](docs/metricas.md), generado con `metricas.py`:
+Resumen de [docs/metricas.md](docs/metricas.md). Se calcula con los issues y PRs de GitHub y se actualiza con `python scripts/metricas.py`, que reescribe este bloque:
 
-- **Velocity promedio:** [POR COMPLETAR] puntos por sprint
-- **Historias completadas:** [POR COMPLETAR]/18
-- **Bugs encontrados:** [POR COMPLETAR]
-- **Tiempo promedio de resolución (lead time):** [POR COMPLETAR]
+<!-- metricas:inicio -->
+- **Velocity promedio:** 35.5 puntos por sprint
+- **Historias completadas:** 13/15
+- **Bugs encontrados:** 0
+- **Tiempo promedio de resolución (lead time):** 2.8 días
+<!-- metricas:fin -->
 
 ### Instalación rápida
 
 ```bash
 git clone https://github.com/Juan-Supelano/BK_Punto360.git
 cd BK_Punto360
+cp .env.example .env    # Windows: copy .env.example .env  -> y cambia los dos valores
 docker compose up --build
 ```
 
@@ -79,12 +86,13 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 - [Runbook de despliegue y rollback](docs/runbook.md)
 - [Retrospectiva y lecciones aprendidas](docs/retrospectiva.md)
 - [Despliegue en GCP](docs/despliegue-gcp.md)
+- [Módulo de IA predictiva](docs/ia.md)
 - API: sección [Endpoints](#endpoints) y Swagger en `/docs`
 
 ### Enlaces
 
-- [Aplicación](POR COMPLETAR: URL de cuadre-pos-web)
-- [Videos de demostración](POR COMPLETAR: enlace de Drive)
+- [Aplicación](https://cuadre-pos-web-408401553453.us-central1.run.app/)
+- Enlace del video:
 - [API](https://cuadre-pos-api-kbybcvo7wa-uc.a.run.app/docs)
 - [GitHub Project](https://github.com/users/Juan-Supelano/projects/5)
 
@@ -92,6 +100,7 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 
 - [Descripción](#descripción)
 - [Funcionalidades](#funcionalidades)
+- [IA predictiva](#ia-predictiva)
 - [Capturas de Pantallas del Funcionamiento](#capturas-de-pantallas-del-funcionamiento)
 - [¿Por qué utilizar este proyecto?](#por-qué-utilizar-este-proyecto)
 - [Tecnologías utilizadas](#tecnologías-utilizadas)
@@ -102,6 +111,7 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 - [Próximas mejoras](#próximas-mejoras)
 - [Instalación y ejecución](#instalación-y-ejecución)
 - [Despliegue en la nube (Google Cloud)](#despliegue-en-la-nube-google-cloud)
+- [Despliegue en Kubernetes (Docker Desktop)](#despliegue-en-kubernetes-docker-desktop)
 - [Errores, complicaciones y soluciones](#errores-complicaciones-y-soluciones)
 - [Estado del proyecto](#estado-del-proyecto)
 
@@ -154,6 +164,37 @@ Cuadre POS es un sistema pensado para llevar el control completo del punto de ve
 | **Autenticación y roles de usuario** | Inicio de sesión con usuario y contraseña (token JWT). Existen dos roles: **ADMIN** (gestiona el negocio, usuarios y compras) y **CAJERO** (solo puede registrar ventas). La sesión se cierra sola tras 30 minutos sin actividad en la página. |
 | **Gestión de usuarios** | El ADMIN puede crear, editar, desactivar y resetear la contraseña de otros usuarios del sistema. |
 | **Perfil y datos del comercio** | Cada usuario puede editar su propio perfil (nombre, foto), y el ADMIN puede configurar los datos del negocio (razón social, NIT, logo, resolución) que aparecen en el comprobante de venta. |
+
+---
+
+## IA predictiva
+
+El ADMIN tiene un **Informe predictivo** que se calcula con el histórico de ventas del propio sistema, sin servicios externos ni IA generativa, y que funciona sin internet:
+
+| Qué muestra | Cómo se calcula |
+|---|---|
+| **Ventas de los próximos 7, 15 o 30 días** con rango probable del 95 % | Holt-Winters (suavizamiento exponencial con tendencia amortiguada y patrón semanal) sobre el total vendido por día. Se vuelve a ajustar en cada consulta. |
+| **Error del modelo** | Backtesting: pronostica los últimos 7 días sin haberlos visto y mide MAE y MAPE. |
+| **Alertas de inventario** | Días que alcanza el stock al ritmo de venta de los últimos 30 días: crítico (≤ 3) o advertencia (≤ 7). |
+| **Compra sugerida** | Lo que se venderá durante los días a cubrir y la entrega del proveedor, más el stock mínimo, menos el stock actual. |
+| **Baja rotación y capital inmovilizado** | Probabilidad de venta a 30 días con un modelo de Poisson (ventas de 90 días), o más de 60 días sin venderse. |
+| **Ventas por mes y productividad de cajeros** | Totales de las ventas pagadas. |
+
+![Informe predictivo](docs/screenshots/ia-01-proyeccion.png)
+
+*Captura con datos de demostración.* Con los datos semilla la proyección indica que faltan días con ventas: se necesitan al menos 14.
+
+**Endpoints** (solo ADMIN; detalle en [Endpoints › IA predictiva](#ia-predictiva--prediccion)):
+
+| Método | Ruta | Parámetros |
+|---|---|---|
+| GET | `/prediccion/ventas` | `dias`: 7, 15 o 30 |
+| GET | `/prediccion/inventario` | `cobertura` (1 a 180) y `tiempo_entrega` (0 a 90) |
+| GET | `/prediccion/ventas-mensuales` | `meses` (1 a 24) |
+
+**Cómo probarlo:** en la interfaz, inicie sesión como ADMIN y abra *Informe predictivo*. En la API, abra `/docs`, autorícese con el token de `POST /auth/login` y use la sección *IA predictiva*. Las pruebas automáticas están en `backend/tests/test_prediccion.py` (`pytest tests/test_prediccion.py -q`).
+
+El problema que resuelve, por qué se eligieron estos modelos y no árboles o IA generativa, los datos que usa, la evaluación y las limitaciones están en **[docs/ia.md](docs/ia.md)**.
 
 ---
 
@@ -281,6 +322,8 @@ Módulo *Mis ventas*: cada cajero ve únicamente las ventas que él mismo regist
 | **PyJWT** | Genera y valida los tokens de sesión (autenticación). |
 | **bcrypt** | Genera el hash seguro de las contraseñas de los usuarios. |
 | **python-multipart** | Permite recibir formularios y archivos en la API (por ejemplo, fotos de perfil o del negocio). |
+| **statsmodels y NumPy** | Modelo Holt-Winters y cálculos del informe predictivo (ver [IA predictiva](#ia-predictiva)). |
+| **prometheus-client** | Publica en `/metrics` las métricas de la API y del módulo predictivo. |
 
 ### Frontend
 
@@ -314,13 +357,13 @@ Módulo *Mis ventas*: cada cajero ve únicamente las ventas que él mismo regist
 
 El proyecto está dividido en dos partes que se comunican entre sí:
 
-- **Backend (API)**: expone rutas por módulo (`/productos`, `/categorias`, `/ventas`, `/compras`, `/clientes`, `/proveedores`, `/usuarios`, `/auth`, `/perfil`). Recibe peticiones, valida la información, aplica las reglas de negocio (por ejemplo, que no se venda más stock del disponible) y se comunica con la base de datos.
+- **Backend (API)**: expone rutas por módulo (`/productos`, `/categorias`, `/ventas`, `/compras`, `/clientes`, `/proveedores`, `/usuarios`, `/auth`, `/perfil`, `/prediccion`). Recibe peticiones, valida la información, aplica las reglas de negocio (por ejemplo, que no se venda más stock del disponible) y se comunica con la base de datos.
 - **Frontend (interfaz web)**: pantallas construidas en React desde donde el usuario interactúa con el sistema: login, venta en mostrador, compras, clientes, proveedores, usuarios y un componente de recibo imprimible. Se comunica con el backend mediante peticiones HTTP.
 - **Base de datos (PostgreSQL)**: almacena de forma persistente productos, categorías, ventas, compras, clientes, proveedores, usuarios y el kardex de movimientos de inventario.
 
 Adicionalmente:
 
-- Las peticiones a rutas protegidas requieren un **token de sesión (JWT)**, obtenido al iniciar sesión en `/auth/login`.
+- Las peticiones a rutas protegidas requieren un **token de sesión (JWT)**, obtenido al iniciar sesión en `/auth/login`. Los criterios de seguridad están en [docs/seguridad.md](docs/seguridad.md).
 - La base de datos se administra con los scripts SQL de la carpeta `database/` (ver [Carpeta database](#carpeta-database)), en lugar de dejar que el backend cree las tablas automáticamente.
 - Existe un **`Dockerfile`** para empaquetar el backend como contenedor, pensado para desplegarse en un servicio como Cloud Run.
 
@@ -508,6 +551,18 @@ Cuerpo de `POST /ventas` (los precios los pone el backend):
 
 Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
+### IA predictiva — `/prediccion`
+
+Todas son solo ADMIN. Están explicadas en [docs/ia.md](docs/ia.md#9-endpoints-y-cómo-probarlo).
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/prediccion/ventas` | ADMIN | Proyección diaria del total vendido (Holt-Winters). Query: `dias` = 7, 15 o 30 (otro valor: `422`). Trae `historico` (30 días), `proyeccion` (estimado, inferior y superior por día) y `error` (MAE y MAPE del backtesting). Con menos de 14 días con ventas responde `datos_suficientes: false` |
+| GET | `/prediccion/inventario` | ADMIN | Por producto activo: demanda diaria, días restantes, nivel de alerta, compra sugerida, probabilidad de venta a 30 días y baja rotación. Query: `cobertura` (1 a 180, por defecto 15) y `tiempo_entrega` (0 a 90, por defecto 3) |
+| GET | `/prediccion/ventas-mensuales` | ADMIN | Total y número de ventas pagadas por mes. Query: `meses` (1 a 24, por defecto 12) |
+
+`GET /metrics` publica además `punto360_prediccion_calculos_total`, `punto360_prediccion_duracion_segundos` y `punto360_prediccion_mape`.
+
 ### Archivos estáticos
 
 | Método | Ruta | Descripción |
@@ -556,7 +611,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 - No existe una integración real de **facturación electrónica ante la DIAN**: solo hay campos preparados (prefijo de factura, resolución) para una futura integración.
 - El manejo de **caja** (apertura y cierre de turno) todavía no está implementado; existe un campo de referencia en las ventas, pero no se usa aún.
 - No incluye todavía versionado formal de base de datos (por ejemplo, Alembic); los cambios de esquema se administran con scripts SQL manuales.
-- Solo tiene un informe básico de ventas por periodo; no cuenta con tableros de indicadores ni funcionalidad de devoluciones.
+- Los informes disponibles son el de ventas por periodo y el informe predictivo; no hay funcionalidad de devoluciones. Las limitaciones del módulo predictivo están en [docs/ia.md](docs/ia.md#8-limitaciones-y-mejoras-posibles).
 - No hay automatización de despliegue completo en la nube: existe un `Dockerfile` para el backend, pero falta una configuración lista para producción (frontend, base de datos, variables de entorno por entorno, etc.).
 - Al ser un proyecto académico, no ha sido probado a fondo en un entorno de producción real con múltiples usuarios simultáneos.
 
@@ -568,7 +623,7 @@ Métodos de pago: `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`, `MIXTO`.
 
 - Integración real de **facturación electrónica** con la DIAN (hoy solo existen los campos base: resolución y prefijo de factura).
 - Implementación del **manejo de caja** (apertura, cierre y cuadre de turno).
-- Más **reportes** (productos más vendidos, valorización de inventario, etc.); hoy existe el informe de ventas por periodo.
+- Más **reportes** (valorización de inventario, devoluciones, etc.); hoy existen el informe de ventas por periodo y el informe predictivo.
 - Módulo de **devoluciones** de productos.
 - Integración de **Alembic** para el versionado de la base de datos.
 - Automatización del despliegue completo (backend, frontend y base de datos) en **Cloud Run** u otro proveedor.
@@ -603,6 +658,7 @@ cd Punto360
 
 1. Copia `backend/.env.example` como `backend/.env`.
 2. Reemplaza `TU_CONTRASENA` por la contraseña de tu usuario de PostgreSQL.
+3. Pon en `JWT_SECRETO` un valor aleatorio de al menos 32 caracteres (`python -c "import secrets; print(secrets.token_hex(32))"`). Sin `DATABASE_URL` o sin un `JWT_SECRETO` válido la API no arranca.
 
 **Frontend:**
 
@@ -674,6 +730,164 @@ La interfaz quedará disponible en `http://localhost:5173`. Inicia sesión con e
 7. **CORS**: se actualizó la variable `CORS_ORIGENES` del backend con la URL real del frontend ya desplegado (ver detalle en la siguiente sección).
 
 > Las URLs de Cloud Run generadas automáticamente (`https://<servicio>-<hash>.<region>.run.app`) son válidas para pruebas, pero no corresponden a un dominio propio del proyecto.
+
+---
+
+## Despliegue en Kubernetes (Docker Desktop)
+
+La aplicación completa también corre en un clúster local de Kubernetes, con Prometheus y Grafana dentro del mismo clúster.
+
+| Pieza | Dónde está | Qué hace |
+|---|---|---|
+| Imágenes | `.github/workflows/imagenes.yml` | Publica `ghcr.io/juan-supelano/punto360-api` y `punto360-web` (etiquetas `latest` y SHA del commit) |
+| Namespace | `k8s/00-namespace.yaml` | Agrupa todo en `punto360` |
+| ConfigMap | `k8s/01-configmap.yaml` | Configuración no sensible: `CORS_ORIGENES` y `JWT_MINUTOS` |
+| Secret | `k8s/secret.yaml` (se crea desde `k8s/secret.example.yaml`, nunca se sube) | `POSTGRES_PASSWORD`, `DATABASE_URL` y `JWT_SECRETO` |
+| PostgreSQL | `k8s/02-postgres.yaml` | StatefulSet con volumen persistente; se inicializa con `database/schema.sql` y `seed.sql` (ConfigMap `db-init`) |
+| API | `k8s/03-api.yaml` | Deployment con 2 réplicas, readiness en `/listo`, liveness en `/salud`, requests/limits y Service |
+| Frontend | `k8s/04-web.yaml` | Deployment con nginx y Service |
+| Monitoreo | `monitoring/values.yaml` y `k8s/05-servicemonitor.yaml` | Chart kube-prometheus-stack (release y namespace `monitoreo`); Prometheus lee `/metrics` de la API |
+
+### Requisitos
+
+- Docker Desktop con Kubernetes activado (*Settings → Kubernetes → Enable Kubernetes*). Conviene darle a Docker al menos 4 GB de memoria.
+- `kubectl` (viene con Docker Desktop) y [Helm 3](https://helm.sh/docs/intro/install/).
+- Python 3 para el script de tráfico.
+
+Todos los comandos se ejecutan desde la raíz del repositorio.
+
+### 1. Imágenes en GitHub Container Registry
+
+El workflow **Imágenes** las publica en cada push a `desarrollo` o `main` que cambie `backend/` o `frontend/`. También se puede lanzar a mano en *Actions → Imágenes → Run workflow*. El frontend se compila con `VITE_API_URL=http://localhost:8000`, la dirección por la que se abre la API en el clúster local.
+
+La primera vez, el dueño del repositorio debe volver públicos los dos paquetes para que el clúster los descargue sin credenciales: en GitHub, *Packages* → `punto360-api` → *Package settings* → *Change visibility* → *Public*, y lo mismo con `punto360-web`.
+
+Para comprobar que las imágenes construyen en el equipo (opcional):
+
+```bash
+docker build -t ghcr.io/juan-supelano/punto360-api:latest backend
+docker build -t ghcr.io/juan-supelano/punto360-web:latest --build-arg API_URL_LOCAL=http://localhost:8000 frontend
+```
+
+### 2. Desplegar la aplicación
+
+```bash
+kubectl config use-context docker-desktop
+kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-configmap.yaml
+```
+
+Crear el Secret a partir de la plantilla (en Windows: `copy k8s\secret.example.yaml k8s\secret.yaml`) y poner los valores reales. `k8s/secret.yaml` está en `.gitignore`: nunca se sube. La `DATABASE_URL` debe usar la misma contraseña de `POSTGRES_PASSWORD` y el host `postgres`:
+
+```text
+postgresql+psycopg://postgres:<POSTGRES_PASSWORD>@postgres:5432/proyecto_nube
+```
+
+```bash
+cp k8s/secret.example.yaml k8s/secret.yaml
+kubectl apply -f k8s/secret.yaml
+kubectl create configmap db-init -n punto360 --from-file=01-schema.sql=database/schema.sql --from-file=02-seed.sql=database/seed.sql
+kubectl apply -f k8s/02-postgres.yaml
+kubectl rollout status statefulset/postgres -n punto360
+kubectl apply -f k8s/03-api.yaml -f k8s/04-web.yaml
+kubectl rollout status deployment/punto360-api -n punto360
+kubectl get pods,svc -n punto360
+```
+
+Deben quedar `postgres-0`, dos pods `punto360-api-…` y uno `punto360-web-…` en `Running` y `READY 1/1`. No uses `kubectl apply -f k8s/`: aplicaría la plantilla del Secret y el ServiceMonitor antes de instalar Prometheus.
+
+### 3. Abrir la aplicación
+
+En dos terminales distintas (cada una se queda abierta):
+
+```bash
+kubectl port-forward -n punto360 svc/punto360-api 8000:8080
+kubectl port-forward -n punto360 svc/punto360-web 8080:8080
+```
+
+- Frontend: http://localhost:8080
+- API: http://localhost:8000/docs
+
+Los usuarios de los datos semilla son `admin@cuadrepos.co` (ADMIN) y `cajero@cuadrepos.co` (CAJERO). Para ponerle una contraseña conocida a uno de ellos (cambia `TU_CLAVE`):
+
+```bash
+kubectl exec -n punto360 deploy/punto360-api -- python -c "from sqlalchemy import update; from app.database import SessionLocal; from app.models import Usuario; from app.seguridad import hashear; db = SessionLocal(); db.execute(update(Usuario).where(Usuario.email == 'admin@cuadrepos.co').values(password_hash=hashear('TU_CLAVE'), debe_cambiar_password=False)); db.commit(); print('Clave actualizada')"
+```
+
+### 4. Prometheus y Grafana dentro del clúster
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoreo prometheus-community/kube-prometheus-stack -n monitoreo --create-namespace -f monitoring/values.yaml
+kubectl get pods -n monitoreo
+kubectl apply -f k8s/05-servicemonitor.yaml
+kubectl create configmap dashboard-punto360 -n monitoreo --from-file=monitoring/dashboard-punto360.json
+kubectl label configmap dashboard-punto360 -n monitoreo grafana_dashboard=1
+```
+
+Prometheus (comprobar que lee la API):
+
+```bash
+kubectl port-forward -n monitoreo svc/monitoreo-kube-prometheus-prometheus 9090:9090
+```
+
+En http://localhost:9090 → *Status → Targets* debe aparecer `serviceMonitor/punto360/punto360-api/0` con las dos réplicas en `UP`.
+
+Grafana:
+
+```bash
+kubectl port-forward -n monitoreo svc/monitoreo-grafana 3000:80
+```
+
+Entrar a http://localhost:3000 con el usuario `admin`. La contraseña la genera el chart; para verla:
+
+```powershell
+# PowerShell
+[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String((kubectl get secret monitoreo-grafana -n monitoreo -o jsonpath="{.data.admin-password}")))
+```
+
+```bash
+# Git Bash, macOS o Linux
+kubectl get secret monitoreo-grafana -n monitoreo -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+El dashboard **Punto360** aparece en *Dashboards*. Usa la fuente de datos Prometheus que crea el chart (uid `prometheus`). Si se cambia el JSON, se vuelve a cargar con:
+
+```bash
+kubectl create configmap dashboard-punto360 -n monitoreo --from-file=monitoring/dashboard-punto360.json --dry-run=client -o yaml | kubectl apply -f -
+kubectl label configmap dashboard-punto360 -n monitoreo grafana_dashboard=1 --overwrite
+```
+
+### 5. Generar tráfico de prueba
+
+Con el port-forward de la API abierto (paso 3):
+
+```bash
+python scripts/trafico.py
+```
+
+Sin credenciales solo llama rutas públicas y rutas protegidas sin token (responden 401). Para incluir las consultas autenticadas, las credenciales van por variables de entorno (`PUNTO360_EMAIL` y `PUNTO360_PASSWORD`), nunca en el script; `--prediccion` agrega los cálculos del módulo predictivo, que gastan CPU. Opciones: `python scripts/trafico.py --help`.
+
+En Grafana se ven subir el throughput, la latencia p50/p95, las peticiones en curso y las respuestas por código (los 401 son las peticiones sin token). Las métricas de la API (HU-24) son `punto360_http_peticiones_total`, `punto360_http_duracion_segundos` y `punto360_http_peticiones_en_curso`.
+
+### 6. Actualizar y apagar
+
+Traer la última imagen publicada:
+
+```bash
+kubectl rollout restart deployment/punto360-api deployment/punto360-web -n punto360
+```
+
+Borrar todo cuando no se use:
+
+```bash
+kubectl delete namespace punto360
+helm uninstall monitoreo -n monitoreo
+kubectl delete namespace monitoreo
+```
+
+Borrar el namespace `punto360` también borra el volumen de PostgreSQL: el siguiente despliegue vuelve a cargar `schema.sql` y `seed.sql`.
 
 ---
 

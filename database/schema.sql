@@ -307,6 +307,7 @@ CREATE TABLE public.compra_item (
     cantidad numeric(10,3) NOT NULL,
     costo_unitario numeric(12,2) NOT NULL,
     subtotal_linea numeric(12,2) NOT NULL,
+    iva_pct numeric(5,2),
     CONSTRAINT ck_compra_item_cantidad CHECK ((cantidad > (0)::numeric)),
     CONSTRAINT ck_compra_item_costo CHECK ((costo_unitario >= (0)::numeric))
 );
@@ -367,7 +368,11 @@ CREATE TABLE public.configuracion_comercio (
     logo_url character varying(500),
     email character varying(120),
     ciudad character varying(80),
-    CONSTRAINT ck_config_fila_unica CHECK ((id = 1))
+    iva_pct numeric(5,2) DEFAULT 19 NOT NULL,
+    precio_incluye_iva boolean DEFAULT true NOT NULL,
+    escaneo_camara boolean DEFAULT false NOT NULL,
+    CONSTRAINT ck_config_fila_unica CHECK ((id = 1)),
+    CONSTRAINT ck_config_iva CHECK (((iva_pct >= (0)::numeric) AND (iva_pct <= (100)::numeric)))
 );
 
 
@@ -504,6 +509,7 @@ CREATE TABLE public.producto (
     nombre character varying(150) NOT NULL,
     descripcion text,
     precio_venta numeric(12,2) NOT NULL,
+    codigo_barras character varying(50),
     costo numeric(12,2) DEFAULT 0 NOT NULL,
     iva_pct numeric(5,2) DEFAULT 19.00 NOT NULL,
     stock_actual integer DEFAULT 0 NOT NULL,
@@ -1322,6 +1328,13 @@ CREATE INDEX idx_producto_activo ON public.producto USING btree (activo);
 
 
 --
+-- Name: uq_producto_codigo_barras; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX uq_producto_codigo_barras ON public.producto USING btree (codigo_barras) WHERE (codigo_barras IS NOT NULL);
+
+
+--
 -- TOC entry 4887 (class 1259 OID 26181)
 -- Name: idx_producto_categoria; Type: INDEX; Schema: public; Owner: postgres
 --
@@ -1517,6 +1530,47 @@ ALTER TABLE ONLY public.venta
 
 ALTER TABLE ONLY public.venta
     ADD CONSTRAINT fk_venta_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) ON DELETE SET NULL;
+
+
+--
+-- Name: auditoria_cambio; Type: TABLE; Schema: public (HU-32)
+--
+
+CREATE TABLE IF NOT EXISTS public.auditoria_cambio (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fecha timestamp with time zone DEFAULT now() NOT NULL,
+    usuario_id integer REFERENCES public.usuario(id),
+    entidad character varying(20) NOT NULL,
+    entidad_id integer NOT NULL,
+    descripcion character varying(200) NOT NULL,
+    campo character varying(40) NOT NULL,
+    valor_antes text,
+    valor_despues text,
+    CONSTRAINT ck_auditoria_entidad CHECK (((entidad)::text = ANY ((ARRAY['producto'::character varying, 'usuario'::character varying, 'comercio'::character varying])::text[])))
+);
+
+CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON public.auditoria_cambio USING btree (fecha DESC);
+CREATE INDEX IF NOT EXISTS idx_auditoria_entidad ON public.auditoria_cambio USING btree (entidad, entidad_id);
+
+-- El registro solo admite INSERT: ni la aplicacion ni una consulta manual
+-- pueden modificarlo o borrarlo sin quitar antes este trigger.
+CREATE OR REPLACE FUNCTION public.auditoria_solo_insertar() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RAISE EXCEPTION 'auditoria_cambio solo admite INSERT: el registro no se modifica ni se borra';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_auditoria_solo_insertar ON public.auditoria_cambio;
+CREATE TRIGGER trg_auditoria_solo_insertar
+    BEFORE UPDATE OR DELETE ON public.auditoria_cambio
+    FOR EACH ROW EXECUTE FUNCTION public.auditoria_solo_insertar();
+
+DROP TRIGGER IF EXISTS trg_auditoria_sin_truncate ON public.auditoria_cambio;
+CREATE TRIGGER trg_auditoria_sin_truncate
+    BEFORE TRUNCATE ON public.auditoria_cambio
+    FOR EACH STATEMENT EXECUTE FUNCTION public.auditoria_solo_insertar();
 
 
 -- Completed on 2026-09-12 22:32:34

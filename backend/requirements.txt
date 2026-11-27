@@ -8,3 +8,10 @@ python-dotenv>=1.0
 PyJWT>=2.10
 bcrypt>=4.2
 python-multipart>=0.0.12
+# IA predictiva (HU-25): todo corre local, sin APIs externas.
+numpy>=1.26
+pandas>=2.2
+scipy>=1.11
+statsmodels>=0.14.2
+# Metricas para Prometheus (HU-24 y HU-26)
+prometheus-client>=0.21

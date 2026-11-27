@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api, pesos } from '../api.js'
+import { api, ivaDelComercio, pesos } from '../api.js'
+import { useAuth } from '../auth.jsx'
+import EscanerCamara from '../EscanerCamara.jsx'
+import Paginacion, { usePaginacion } from '../Paginacion.jsx'
+import { mayusculaInicial, sinEnviarConEnter } from '../texto.js'
 
 const UNIDADES = ['UND', 'KG', 'LT', 'MT', 'CAJA', 'PAQ']
 
 const VACIO = {
   sku: '',
+  codigo_barras: '',
   nombre: '',
   descripcion: '',
   precio_venta: '',
+  iva_pct: '',
+  // Si el precio escrito ya trae IVA. Arranca como dice Mi empresa.
+  precio_con_iva: true,
   costo: '',
-  iva_pct: '19',
   stock_actual: '',
   stock_minimo: '',
   unidad_medida: 'UND',
@@ -51,6 +58,13 @@ function nombreMovimiento(m) {
 }
 
 export default function Productos() {
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol === 'ADMIN'
+  // IVA por defecto y convención de precios de Mi empresa.
+  const iva = ivaDelComercio(usuario?.comercio)
+  // Botón de cámara junto al código de barras, si el ADMIN lo activó.
+  const camara = Boolean(usuario?.comercio?.escaneo_camara)
+  const [escaneando, setEscaneando] = useState(false)
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [filtroCategoria, setFiltroCategoria] = useState('')
@@ -106,6 +120,11 @@ export default function Productos() {
     cargar()
   }, [cargar])
 
+  const pag = usePaginacion(
+    productos,
+    `${filtroCategoria}|${busqueda}|${soloStockBajo}|${incluirInactivos}`,
+  )
+
   // Al elegir categoría en el formulario de creación, pide la vista previa
   // del SKU que se va a asignar.
   useEffect(() => {
@@ -145,7 +164,12 @@ export default function Productos() {
       setError('Primero crea una categoría: de ahí sale el prefijo del SKU.')
       return
     }
-    setFormulario({ ...VACIO, categoria_id: String(categoriasActivas[0].id) })
+    setFormulario({
+      ...VACIO,
+      categoria_id: String(categoriasActivas[0].id),
+      iva_pct: String(iva.ivaPct),
+      precio_con_iva: iva.incluyeIva,
+    })
     setEditandoId(null)
     setSkuPrevio('')
     setPanelAbierto(true)
@@ -155,11 +179,14 @@ export default function Productos() {
   function abrirEdicion(p) {
     setFormulario({
       sku: p.sku,
+      codigo_barras: p.codigo_barras ?? '',
       nombre: p.nombre,
       descripcion: p.descripcion ?? '',
       precio_venta: String(p.precio_venta),
+      iva_pct: String(Number(p.iva_pct)),
+      // El precio guardado sigue la convención de Mi empresa.
+      precio_con_iva: iva.incluyeIva,
       costo: String(p.costo),
-      iva_pct: String(p.iva_pct),
       stock_actual: String(p.stock_actual),
       stock_minimo: String(p.stock_minimo),
       unidad_medida: p.unidad_medida,
@@ -178,14 +205,28 @@ export default function Productos() {
     setSkuPrevio('')
   }
 
+  // El precio se guarda con la convención de Mi empresa (con o sin IVA), que
+  // es como lo interpreta la venta. Si en el formulario se escribió de la
+  // otra forma, se convierte: 1.000 sin IVA al 19 % se guarda como 1.190.
+  const ivaFormulario = formulario.iva_pct === '' ? iva.ivaPct : Number(formulario.iva_pct)
+  const precioEscrito = Number(formulario.precio_venta || 0)
+  const factorIva = 1 + ivaFormulario / 100
+  let precioAGuardar = precioEscrito
+  if (formulario.precio_con_iva !== iva.incluyeIva) {
+    precioAGuardar = iva.incluyeIva ? precioEscrito * factorIva : precioEscrito / factorIva
+  }
+  precioAGuardar = Math.round(precioAGuardar * 100) / 100
+
   async function guardar(evento) {
     evento.preventDefault()
     const datos = {
       nombre: formulario.nombre.trim(),
+      // Vacío se manda como "" para que, al editar, se pueda quitar el código.
+      codigo_barras: formulario.codigo_barras.trim(),
       descripcion: formulario.descripcion.trim() || null,
-      precio_venta: Number(formulario.precio_venta),
+      precio_venta: precioAGuardar,
+      iva_pct: ivaFormulario,
       costo: Number(formulario.costo || 0),
-      iva_pct: Number(formulario.iva_pct || 0),
       stock_actual: Number(formulario.stock_actual || 0),
       stock_minimo: Number(formulario.stock_minimo || 0),
       unidad_medida: formulario.unidad_medida,
@@ -243,9 +284,10 @@ export default function Productos() {
     }
   }
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   const categoriaElegida = categorias.find(
@@ -311,14 +353,17 @@ export default function Productos() {
           />
           Solo stock bajo
         </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={incluirInactivos}
-            onChange={(e) => setIncluirInactivos(e.target.checked)}
-          />
-          Ver inactivos
-        </label>
+        {/* Los inactivos solo le sirven al ADMIN, que es quien puede reactivarlos. */}
+        {esAdmin && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={incluirInactivos}
+              onChange={(e) => setIncluirInactivos(e.target.checked)}
+            />
+            Ver inactivos
+          </label>
+        )}
       </div>
 
       <div className="tabla-envoltura">
@@ -345,7 +390,7 @@ export default function Productos() {
             )}
 
             {!cargando &&
-              productos.map((p) => (
+              pag.visibles.map((p) => (
                 <tr
                   key={p.id}
                   className={p.activo ? 'fila-clicable' : 'fila-clicable fila-inactiva'}
@@ -396,12 +441,15 @@ export default function Productos() {
                     <button className="btn btn-suave" onClick={() => abrirEdicion(p)}>
                       Editar
                     </button>
-                    <button
-                      className={p.activo ? 'btn btn-peligro' : 'btn btn-suave'}
-                      onClick={() => alternarActivo(p)}
-                    >
-                      {p.activo ? 'Desactivar' : 'Reactivar'}
-                    </button>
+                    {/* Desactivar y reactivar: solo ADMIN (el backend también lo exige). */}
+                    {esAdmin && (
+                      <button
+                        className={p.activo ? 'btn btn-peligro' : 'btn btn-suave'}
+                        onClick={() => alternarActivo(p)}
+                      >
+                        {p.activo ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -417,12 +465,15 @@ export default function Productos() {
         </table>
       </div>
 
+      <Paginacion {...pag} />
+
       {panelAbierto && (
         <div className="fondo-modal" onClick={cerrarPanel}>
           <form
             className="modal"
             onClick={(e) => e.stopPropagation()}
             onSubmit={guardar}
+            onKeyDown={sinEnviarConEnter}
           >
             <h3>{editandoId ? 'Editar producto' : 'Nuevo producto'}</h3>
 
@@ -458,8 +509,31 @@ export default function Productos() {
               </label>
 
               <label className="campo campo-completo">
+                <span>Código de barras (opcional)</span>
+                <div className="campo-con-boton">
+                  <input
+                    className="mono-entrada"
+                    maxLength={50}
+                    placeholder="Escanéalo con el lector o escríbelo"
+                    {...campo('codigo_barras')}
+                  />
+                  {camara && (
+                    <button
+                      type="button"
+                      className="btn btn-suave btn-camara"
+                      title="Escanear con la cámara"
+                      aria-label="Escanear con la cámara"
+                      onClick={() => setEscaneando(true)}
+                    >
+                      📷
+                    </button>
+                  )}
+                </div>
+              </label>
+
+              <label className="campo campo-completo">
                 <span>Nombre</span>
-                <input required maxLength={150} {...campo('nombre')} />
+                <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
               </label>
 
               <label className="campo campo-completo">
@@ -467,19 +541,42 @@ export default function Productos() {
                 <input {...campo('descripcion')} />
               </label>
 
-              <label className="campo">
+              {/* div y no label: adentro va otra etiqueta (la casilla del IVA). */}
+              <div className="campo">
                 <span>Precio de venta</span>
                 <input type="number" min="0" step="0.01" required {...campo('precio_venta')} />
+                <label className="check check-chico">
+                  <input
+                    type="checkbox"
+                    checked={formulario.precio_con_iva}
+                    onChange={(e) => setFormulario({ ...formulario, precio_con_iva: e.target.checked })}
+                  />
+                  El precio ya incluye IVA
+                </label>
+                {formulario.precio_con_iva !== iva.incluyeIva && precioEscrito > 0 && (
+                  <small>
+                    Se guarda como {pesos.format(precioAGuardar)}{' '}
+                    {iva.incluyeIva ? 'con IVA incluido' : 'sin IVA'}.
+                  </small>
+                )}
+              </div>
+
+              <label className="campo">
+                <span>IVA %</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder={String(iva.ivaPct)}
+                  {...campo('iva_pct')}
+                />
+                <small>Por defecto {iva.ivaPct} % (Mi empresa). Las compras lo actualizan.</small>
               </label>
 
               <label className="campo">
                 <span>Costo</span>
                 <input type="number" min="0" step="0.01" {...campo('costo')} />
-              </label>
-
-              <label className="campo">
-                <span>IVA %</span>
-                <input type="number" min="0" max="100" step="0.01" {...campo('iva_pct')} />
               </label>
 
               <label className="campo">
@@ -600,6 +697,13 @@ export default function Productos() {
             </div>
           </div>
         </div>
+      )}
+      {escaneando && (
+        <EscanerCamara
+          titulo="Escanear código del producto"
+          onLeido={(codigo) => setFormulario((f) => ({ ...f, codigo_barras: codigo }))}
+          onCerrar={() => setEscaneando(false)}
+        />
       )}
     </section>
   )

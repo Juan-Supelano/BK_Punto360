@@ -30,6 +30,8 @@ class Producto(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     sku: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    # Opcional y unico (indice unico parcial: varios productos pueden no tener).
+    codigo_barras: Mapped[str | None] = mapped_column(String(50))
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text)
     precio_venta: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

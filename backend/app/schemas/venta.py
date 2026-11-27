@@ -30,9 +30,11 @@ class VentaCrear(BaseModel):
 
     cliente_id: int | None = None
     metodo_pago: str = Field(default="EFECTIVO")
-    precio_incluye_iva: bool = Field(
-        default=True,
+    precio_incluye_iva: bool | None = Field(
+        default=None,
         description=(
+            "Si no se envia, se usa lo configurado en Mi empresa. "
+
             "true: el precio del producto ya trae el IVA y la factura lo "
             "desglosa (1200 = 1008 base + 192 IVA). "
             "false: el precio es la base y el IVA se suma encima (1200 -> 1428)."

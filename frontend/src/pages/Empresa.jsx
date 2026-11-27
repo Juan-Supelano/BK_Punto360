@@ -36,6 +36,14 @@ export default function Empresa() {
       const cambios = Object.fromEntries(
         CAMPOS.map(([clave]) => [clave, datos[clave] || null]),
       )
+      // Configuración del IVA (solo la ve y la guarda el ADMIN).
+      if (datos.iva_pct !== undefined) {
+        cambios.iva_pct = Number(datos.iva_pct)
+        cambios.precio_incluye_iva = Boolean(datos.precio_incluye_iva)
+      }
+      if (datos.escaneo_camara !== undefined) {
+        cambios.escaneo_camara = Boolean(datos.escaneo_camara)
+      }
       const actualizado = await api.actualizarComercio(cambios)
       setDatos(actualizado)
       refrescarComercio(actualizado)
@@ -81,6 +89,58 @@ export default function Empresa() {
               />
             </label>
           ))}
+
+          {esAdmin && datos.iva_pct !== undefined && (
+            <div className="campo-completo caja-iva">
+              <strong>IVA</strong>
+              <div className="iva-empresa">
+                <label className="campo">
+                  <span>IVA por defecto (%) *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    required
+                    value={datos.iva_pct}
+                    onChange={(e) => setDatos({ ...datos, iva_pct: e.target.value })}
+                  />
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(datos.precio_incluye_iva)}
+                    onChange={(e) => setDatos({ ...datos, precio_incluye_iva: e.target.checked })}
+                  />
+                  Los precios y costos ya incluyen IVA
+                </label>
+              </div>
+              <p className="sutil">
+                Es el IVA que toman los productos nuevos. Cada producto guarda el suyo, que se
+                ajusta en cada compra y es el que se cobra al vender. La casilla es la opción que
+                viene marcada en Vender y en Compras; allí se puede cambiar solo para una venta o
+                compra.
+              </p>
+            </div>
+          )}
+
+          {esAdmin && datos.escaneo_camara !== undefined && (
+            <div className="campo-completo caja-iva">
+              <strong>Escaneo</strong>
+              <label className="check iva-empresa">
+                <input
+                  type="checkbox"
+                  checked={Boolean(datos.escaneo_camara)}
+                  onChange={(e) => setDatos({ ...datos, escaneo_camara: e.target.checked })}
+                />
+                Permitir escanear códigos con la cámara
+              </label>
+              <p className="sutil">
+                Muestra un botón de cámara en Vender y en el formulario de productos, para los puntos
+                de venta que no tienen lector de códigos.
+              </p>
+            </div>
+          )}
 
           {esAdmin && (
             <div className="modal-pie campo-completo">

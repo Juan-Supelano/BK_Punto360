@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, desglosarIva, pesos } from '../api.js'
+import { api, desglosarIva, ivaDelComercio, pesos } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import ClienteRapido from '../ClienteRapido.jsx'
+import EscanerCamara from '../EscanerCamara.jsx'
 import Recibo, { imprimir } from '../Recibo.jsx'
+import { buscarProductos, pareceCodigo, productoExacto } from '../texto.js'
 
 const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO']
 
@@ -10,31 +12,57 @@ const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO']
 // el formulario de alta rápida.
 const NUEVO_CLIENTE = 'nuevo'
 
-// Quita tildes y pasa a minúscula: en el mostrador nadie escribe "Panadería"
-// con tilde, y el cajero no tiene por qué adivinar cómo quedó guardado.
-function sinTildes(texto = '') {
-  return texto
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // marcas de acento que deja NFD
-    .toLowerCase()
+// La venta en curso se guarda en sessionStorage: si el cajero va a otro
+// módulo (o recarga la página) y vuelve, los productos siguen ahí. Se borra al
+// cobrar, al vaciar la venta o al cerrar la pestaña. Va por usuario para que
+// otro cajero en el mismo equipo no herede la venta.
+const llaveBorrador = (usuarioId) => `punto360_venta_en_curso_${usuarioId}`
+
+function leerBorrador(usuarioId) {
+  try {
+    return JSON.parse(sessionStorage.getItem(llaveBorrador(usuarioId))) || null
+  } catch {
+    return null
+  }
+}
+
+// Al volver, el stock y el precio pueden haber cambiado: el carrito toma los
+// datos frescos y suelta lo que ya no existe o se agotó.
+function reconciliar(carrito, productos) {
+  return carrito.flatMap((linea) => {
+    const fresco = productos.find((p) => p.id === linea.producto.id)
+    if (!fresco || fresco.stock_actual <= 0) return []
+    return [{ producto: fresco, cantidad: Math.min(linea.cantidad, fresco.stock_actual) }]
+  })
 }
 
 export default function Vender() {
   const { usuario } = useAuth()
   const comercio = usuario?.comercio
+  // Valor por defecto de la casilla de IVA (Mi empresa). El porcentaje es el
+  // de cada producto.
+  const iva = ivaDelComercio(comercio)
 
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
 
+  // Se lee una sola vez, al montar la pantalla.
+  const [borrador] = useState(() => leerBorrador(usuario?.id))
+
   const [texto, setTexto] = useState('')
-  const [carrito, setCarrito] = useState([])
-  const [clienteId, setClienteId] = useState('')
-  const [metodoPago, setMetodoPago] = useState('EFECTIVO')
-  const [observaciones, setObservaciones] = useState('')
-  const [recibido, setRecibido] = useState('')
-  // Marcado: el precio de lista ya trae el IVA y la factura lo desglosa.
-  // Es lo normal en mostrador, por eso arranca en true.
-  const [incluyeIva, setIncluyeIva] = useState(true)
+  // Resultado del buscador marcado con las flechas; Enter agrega ese.
+  const [activo, setActivo] = useState(0)
+  const [carrito, setCarrito] = useState(borrador?.carrito ?? [])
+  const [clienteId, setClienteId] = useState(borrador?.clienteId ?? '')
+  const [metodoPago, setMetodoPago] = useState(borrador?.metodoPago ?? 'EFECTIVO')
+  const [observaciones, setObservaciones] = useState(borrador?.observaciones ?? '')
+  const [recibido, setRecibido] = useState(borrador?.recibido ?? '')
+  // Arranca como lo dejó el ADMIN en Mi empresa; se puede cambiar solo para
+  // esta venta.
+  const [incluyeIva, setIncluyeIva] = useState(borrador?.incluyeIva ?? iva.incluyeIva)
+  const [recuperada, setRecuperada] = useState(borrador?.carrito?.length > 0)
+  // Escaneo con cámara: el botón solo aparece si el ADMIN lo activó.
+  const [escaneando, setEscaneando] = useState(false)
 
   const [error, setError] = useState('')
   const [cobrando, setCobrando] = useState(false)
@@ -60,17 +88,42 @@ export default function Vender() {
     cargar()
   }, [cargar])
 
+  useEffect(() => {
+    if (productos.length > 0) setCarrito((c) => reconciliar(c, productos))
+  }, [productos])
+
+  // Guarda la venta en curso cada vez que cambia.
+  useEffect(() => {
+    if (!usuario) return
+    const llave = llaveBorrador(usuario.id)
+    const vacia =
+      carrito.length === 0 &&
+      !clienteId &&
+      !observaciones &&
+      !recibido &&
+      metodoPago === 'EFECTIVO' &&
+      incluyeIva === iva.incluyeIva
+    try {
+      if (vacia) {
+        sessionStorage.removeItem(llave)
+      } else {
+        sessionStorage.setItem(
+          llave,
+          JSON.stringify({ carrito, clienteId, metodoPago, observaciones, recibido, incluyeIva }),
+        )
+      }
+    } catch {
+      // Almacenamiento lleno o bloqueado: la venta sigue funcionando sin borrador.
+    }
+  }, [usuario, carrito, clienteId, metodoPago, observaciones, recibido, incluyeIva, iva.incluyeIva])
+
   // --- Búsqueda de productos --------------------------------------------------
-  const coincidencias = useMemo(() => {
-    const q = sinTildes(texto.trim())
-    if (!q) return []
-    // Se normalizan los dos lados: lo escrito y lo guardado.
-    return productos
-      .filter(
-        (p) => sinTildes(p.sku).includes(q) || sinTildes(p.nombre).includes(q),
-      )
-      .slice(0, 8)
-  }, [texto, productos])
+  // Se normalizan los dos lados: lo escrito y lo guardado.
+  // Los agotados van al final: Enter siempre cae primero en uno con stock.
+  const coincidencias = useMemo(
+    () => buscarProductos(productos, texto, { conStockPrimero: true }),
+    [texto, productos],
+  )
 
   function agregar(producto) {
     if (producto.stock_actual <= 0) {
@@ -94,6 +147,7 @@ export default function Vender() {
       return [...c, { producto, cantidad: 1 }]
     })
     setTexto('')
+    setActivo(0)
     buscador.current?.focus()
   }
 
@@ -134,35 +188,66 @@ export default function Vender() {
     setMetodoPago('EFECTIVO')
     setObservaciones('')
     setRecibido('')
+    setIncluyeIva(iva.incluyeIva)
     setError('')
+    setRecuperada(false)
   }
 
-  // Enter en el buscador agrega el primer resultado: así se vende sin soltar
-  // el teclado, que es como se usa un mostrador de verdad.
+  // Teclado del buscador, para vender sin soltar el teclado:
+  // flechas para moverse por los resultados, Enter agrega el marcado y Escape
+  // borra la búsqueda.
   function teclaBuscador(evento) {
-    if (evento.key === 'Enter') {
+    const total = coincidencias.length
+    if (evento.key === 'ArrowDown' && total > 0) {
       evento.preventDefault()
-      if (coincidencias.length > 0) agregar(coincidencias[0])
+      setActivo((i) => (i + 1) % total)
+    } else if (evento.key === 'ArrowUp' && total > 0) {
+      evento.preventDefault()
+      setActivo((i) => (i - 1 + total) % total)
+    } else if (evento.key === 'Enter') {
+      evento.preventDefault()
+      // Primero el código de barras o SKU exacto (lo que manda un lector).
+      const exacto = productoExacto(productos, texto)
+      if (exacto) {
+        agregar(exacto)
+      } else if (pareceCodigo(texto)) {
+        setError(`Código no registrado: ${texto.trim()}`)
+        setTexto('')
+        setActivo(0)
+      } else if (total > 0) {
+        agregar(coincidencias[Math.min(activo, total - 1)])
+      }
+    } else if (evento.key === 'Escape') {
+      setTexto('')
+      setActivo(0)
     }
+  }
+
+  // Lectura de la cámara: mismo criterio que Enter con un lector físico.
+  // Devuelve el texto que el escáner muestra debajo del video.
+  function codigoDeCamara(codigo) {
+    const producto = productoExacto(productos, codigo)
+    if (!producto) return 'Código no registrado'
+    if (producto.stock_actual <= 0) {
+      setError(`${producto.nombre} está sin stock.`)
+      return `Sin stock: ${producto.nombre}`
+    }
+    agregar(producto)
+    return `✓ ${producto.nombre}`
   }
 
   // --- Totales ----------------------------------------------------------------
   const totales = useMemo(() => {
     let subtotal = 0
-    let iva = 0
+    let totalIva = 0
     let total = 0
     for (const l of carrito) {
-      const d = desglosarIva(
-        l.producto.precio_venta,
-        l.cantidad,
-        l.producto.iva_pct,
-        incluyeIva,
-      )
+      const d = desglosarIva(l.producto.precio_venta, l.cantidad, l.producto.iva_pct, incluyeIva)
       subtotal += d.subtotal
-      iva += d.iva
+      totalIva += d.iva
       total += d.total
     }
-    return { subtotal, iva, total }
+    return { subtotal, iva: totalIva, total }
   }, [carrito, incluyeIva])
 
   const cambio =
@@ -201,7 +286,9 @@ export default function Vender() {
       <div className="titulo-vista">
         <div>
           <h2>Vender</h2>
-          <p className="sutil">Busca por nombre o SKU y presiona Enter para agregar</p>
+          <p className="sutil">
+            Escanea el código o busca por nombre o SKU; muévete con ↑ ↓ y presiona Enter para agregar
+          </p>
         </div>
         {carrito.length > 0 && (
           <button className="btn btn-suave" onClick={limpiar}>
@@ -211,32 +298,60 @@ export default function Vender() {
       </div>
 
       {error && <p className="aviso aviso-error">{error}</p>}
+      {recuperada && carrito.length > 0 && (
+        <p className="aviso">
+          Se recuperó la venta que tenías en curso. Cóbrala o usa “Vaciar venta” para empezar
+          otra.
+        </p>
+      )}
 
       <div className="pos">
         {/* ---------- Izquierda: buscador y carrito ---------- */}
         <div className="pos-principal">
-          <div className="pos-buscador">
+          <div className={comercio?.escaneo_camara ? 'pos-buscador con-camara' : 'pos-buscador'}>
+            {comercio?.escaneo_camara && (
+              <button
+                type="button"
+                className="btn btn-suave btn-camara"
+                title="Escanear con la cámara"
+                aria-label="Escanear con la cámara"
+                onClick={() => setEscaneando(true)}
+              >
+                📷
+              </button>
+            )}
             <input
               ref={buscador}
               type="search"
               autoFocus
-              placeholder="Buscar producto…"
+              placeholder="Escanea o escribe nombre / SKU…"
               value={texto}
-              onChange={(e) => setTexto(e.target.value)}
+              onChange={(e) => {
+                setTexto(e.target.value)
+                setActivo(0)
+              }}
               onKeyDown={teclaBuscador}
+              role="combobox"
+              aria-expanded={coincidencias.length > 0}
+              aria-controls="sugerencias-venta"
             />
             {coincidencias.length > 0 && (
-              <ul className="sugerencias">
+              <ul className="sugerencias" id="sugerencias-venta" role="listbox">
                 {coincidencias.map((p, i) => (
-                  <li key={p.id}>
+                  <li key={p.id} role="option" aria-selected={i === activo}>
                     <button
                       type="button"
-                      className={i === 0 ? 'sugerencia primera' : 'sugerencia'}
+                      tabIndex={-1}
+                      className={i === activo ? 'sugerencia activa' : 'sugerencia'}
+                      onMouseEnter={() => setActivo(i)}
                       onClick={() => agregar(p)}
                       disabled={p.stock_actual <= 0}
                     >
                       <span className="mono">{p.sku}</span>
-                      <span className="sug-nombre">{p.nombre}</span>
+                      <span className="sug-nombre">
+                        {p.nombre}
+                        {p.codigo_barras && <small className="codigo-barras">{p.codigo_barras}</small>}
+                      </span>
                       <span className="sug-stock">
                         {p.stock_actual > 0 ? `${p.stock_actual} disp.` : 'sin stock'}
                       </span>
@@ -264,14 +379,15 @@ export default function Vender() {
                   <tr key={l.producto.id}>
                     <td>
                       <strong>{l.producto.nombre}</strong>
-                      <div className="sutil mono">{l.producto.sku}</div>
+                      <div className="sutil mono">
+                        {l.producto.sku}
+                        {l.producto.codigo_barras && (
+                          <span className="codigo-barras"> · {l.producto.codigo_barras}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="derecha">
                       {pesos.format(Number(l.producto.precio_venta))}
-                      <div className="sutil">
-                        IVA {Number(l.producto.iva_pct)}%{' '}
-                        {incluyeIva ? 'incl.' : 'más'}
-                      </div>
                     </td>
                     <td className="centro">
                       <div className="control-stock">
@@ -522,6 +638,30 @@ export default function Vender() {
 
       {altaCliente && (
         <ClienteRapido onCerrar={() => setAltaCliente(false)} onCreado={clienteCreado} />
+      )}
+      {/* Solo en el celular: total y Cobrar siempre a la vista. */}
+      {carrito.length > 0 && (
+        <div className="barra-cobro-movil">
+          <div>
+            <span className="sutil">Total</span>
+            <strong>{pesos.format(totales.total)}</strong>
+          </div>
+          <button className="btn btn-primario" disabled={cobrando} onClick={cobrar}>
+            {cobrando ? 'Registrando…' : 'Cobrar'}
+          </button>
+        </div>
+      )}
+
+      {escaneando && (
+        <EscanerCamara
+          titulo="Escanear productos"
+          continuo
+          onLeido={codigoDeCamara}
+          onCerrar={() => {
+            setEscaneando(false)
+            buscador.current?.focus()
+          }}
+        />
       )}
     </section>
   )

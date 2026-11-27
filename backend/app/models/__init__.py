@@ -1,3 +1,4 @@
+from app.models.auditoria import AuditoriaCambio
 from app.models.categoria import Categoria
 from app.models.cliente import Cliente
 from app.models.comercio import Comercio
@@ -9,6 +10,7 @@ from app.models.usuario import Usuario
 from app.models.venta import Venta, VentaItem
 
 __all__ = [
+    "AuditoriaCambio",
     "Categoria",
     "Cliente",
     "Comercio",

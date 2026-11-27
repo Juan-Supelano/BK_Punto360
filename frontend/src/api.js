@@ -177,6 +177,17 @@ export const api = {
   anularVenta: (id, motivo) =>
     pedir(`/ventas/${id}/anular`, { method: 'POST', ...cuerpo({ motivo }) }),
 
+  // --- IA predictiva (solo ADMIN) --------------------------------------------
+  proyeccionVentas: (dias) => pedir(`/prediccion/ventas?dias=${dias}`),
+  prediccionInventario: ({ cobertura, tiempoEntrega } = {}) => {
+    const p = new URLSearchParams()
+    if (cobertura) p.set('cobertura', cobertura)
+    if (tiempoEntrega !== undefined) p.set('tiempo_entrega', tiempoEntrega)
+    const cadena = p.toString()
+    return pedir(cadena ? `/prediccion/inventario?${cadena}` : '/prediccion/inventario')
+  },
+  ventasMensuales: (meses = 12) => pedir(`/prediccion/ventas-mensuales?meses=${meses}`),
+
   // --- Usuarios (solo ADMIN) -------------------------------------------------
   listarUsuarios: ({ buscar, incluirInactivos } = {}) => {
     const p = new URLSearchParams()
@@ -192,6 +203,20 @@ export const api = {
   reactivarUsuario: (id) => pedir(`/usuarios/${id}/reactivar`, { method: 'POST' }),
   resetearPasswordUsuario: (id) =>
     pedir(`/usuarios/${id}/resetear-password`, { method: 'POST' }),
+
+  // --- Auditoría (solo ADMIN) -------------------------------------------------
+  auditoria: ({ desde, hasta, usuarioId, entidad, campo, buscar, pagina, porPagina } = {}) => {
+    const p = new URLSearchParams()
+    if (desde) p.set('desde', desde)
+    if (hasta) p.set('hasta', hasta)
+    if (usuarioId) p.set('usuario_id', usuarioId)
+    if (entidad) p.set('entidad', entidad)
+    if (campo) p.set('campo', campo)
+    if (buscar) p.set('buscar', buscar)
+    if (pagina) p.set('pagina', pagina)
+    if (porPagina) p.set('por_pagina', porPagina)
+    return pedir(`/auditoria?${p.toString()}`)
+  },
 
   // --- Perfil propio ----------------------------------------------------------
   verPerfil: () => pedir('/perfil/yo'),
@@ -234,4 +259,13 @@ export function desglosarIva(precio, cantidad, ivaPct, incluyeIva) {
   }
   const iva = Math.round(bruto * tasa * 100) / 100
   return { subtotal: bruto, iva, total: bruto + iva }
+}
+
+// Configuración del IVA del comercio (Mi empresa). Si la base todavía no tiene
+// esas columnas, se usan los valores de siempre.
+export function ivaDelComercio(comercio) {
+  return {
+    ivaPct: Number(comercio?.iva_pct ?? 19),
+    incluyeIva: comercio?.precio_incluye_iva ?? true,
+  }
 }

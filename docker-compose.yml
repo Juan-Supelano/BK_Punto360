@@ -3,13 +3,16 @@
 # Frontend: http://localhost:8080  ·  API: http://localhost:8000/docs
 # La base se crea con database/schema.sql y database/seed.sql solo la primera vez;
 # para empezar de cero: docker compose down -v
+#
+# HU-23: las credenciales no van en este archivo. Se leen del .env de la raíz
+# (copia .env.example como .env); si falta alguna, compose no arranca.
 
 services:
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env (ver .env.example)}
       POSTGRES_DB: proyecto_nube
     volumes:
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -26,8 +29,8 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/proyecto_nube
-      JWT_SECRETO: solo-para-desarrollo-local
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}@db:5432/proyecto_nube
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (ver .env.example)}
       CORS_ORIGENES: http://localhost:8080,http://localhost:5173
     ports:
       - "8000:8080"

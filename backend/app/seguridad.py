@@ -39,16 +39,28 @@ def verificar(password: str, hash_guardado: str) -> bool:
         return False
 
 
+# Hash de una clave que nadie conoce. Sirve para gastar el mismo tiempo de
+# bcrypt cuando el correo no existe: sin esto, la respuesta rapida del login
+# delataria cuales correos estan registrados (HU-22).
+_HASH_SENUELO = bcrypt.hashpw(b"clave-que-no-existe", bcrypt.gensalt()).decode("utf-8")
+
+
+def gastar_tiempo_de_verificacion(password: str) -> None:
+    """Hace una verificacion bcrypt que siempre falla."""
+    verificar(password, _HASH_SENUELO)
+
+
 # --- Tokens ------------------------------------------------------------------
 def crear_token(usuario: Usuario) -> tuple[str, int]:
     """Devuelve (token, segundos_de_vida)."""
     vida = timedelta(minutes=settings.jwt_minutos)
-    expira = datetime.now(timezone.utc) + vida
+    ahora = datetime.now(timezone.utc)
     cuerpo = {
         "sub": str(usuario.id),
         "email": usuario.email,
         "rol": usuario.rol,
-        "exp": expira,
+        "iat": ahora,
+        "exp": ahora + vida,
     }
     token = jwt.encode(cuerpo, settings.jwt_secreto, algorithm=settings.jwt_algoritmo)
     return token, int(vida.total_seconds())
@@ -67,18 +79,22 @@ def usuario_actual(
         )
 
     try:
+        # El algoritmo va fijo (nunca el que diga la cabecera del token) y
+        # exp/sub son obligatorios: un token sin vencimiento no se acepta.
         cuerpo = jwt.decode(
             credenciales.credentials,
             settings.jwt_secreto,
             algorithms=[settings.jwt_algoritmo],
+            options={"require": ["exp", "sub"]},
         )
+        usuario_id = int(cuerpo["sub"])
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "La sesion expiro, vuelve a iniciar sesion",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.PyJWTError:
+    except (jwt.PyJWTError, ValueError):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "Token invalido",
@@ -88,7 +104,7 @@ def usuario_actual(
     usuario = (
         db.query(Usuario)
         .options(selectinload(Usuario.comercio))
-        .filter(Usuario.id == int(cuerpo["sub"]))
+        .filter(Usuario.id == usuario_id)
         .one_or_none()
     )
     if usuario is None or not usuario.activo:

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app import auditoria
 from app.database import get_db
 from app.models import Comercio, Usuario
 from app.schemas.auth import (
@@ -16,6 +17,7 @@ from app.schemas.auth import (
 from app.seguridad import (
     CREDENCIALES_INVALIDAS,
     crear_token,
+    gastar_tiempo_de_verificacion,
     solo_admin,
     usuario_actual,
     verificar,
@@ -35,7 +37,12 @@ def login(datos: LoginPeticion, db: Session = Depends(get_db)):
 
     # El mismo mensaje si el correo no existe o la contrasena esta mal:
     # no le decimos a un atacante cuales correos estan registrados.
-    if usuario is None or not verificar(datos.password, usuario.password_hash):
+    # Si el correo no existe se hace igual una verificacion bcrypt, para que
+    # el tiempo de respuesta tampoco lo revele.
+    if usuario is None:
+        gastar_tiempo_de_verificacion(datos.password)
+        raise CREDENCIALES_INVALIDAS
+    if not verificar(datos.password, usuario.password_hash):
         raise CREDENCIALES_INVALIDAS
 
     if not usuario.activo:
@@ -70,8 +77,20 @@ def actualizar_comercio(
     if comercio is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No hay datos de la empresa")
 
-    for campo, valor in datos.model_dump(exclude_unset=True).items():
+    cambios = datos.model_dump(exclude_unset=True)
+    # Estos dos no admiten vacio: si llegan en null se dejan como estaban.
+    for obligatorio in ("iva_pct", "precio_incluye_iva", "escaneo_camara"):
+        if cambios.get(obligatorio, 0) is None:
+            cambios.pop(obligatorio)
+
+    antes = auditoria.foto(comercio, auditoria.CAMPOS_COMERCIO)
+    for campo, valor in cambios.items():
         setattr(comercio, campo, valor)
+    auditoria.registrar(db, admin, "comercio", comercio, antes, auditoria.CAMPOS_COMERCIO)
+
+    # iva_pct es el IVA POR DEFECTO: lo toman los productos nuevos y las
+    # lineas de compra de productos nuevos. No se copia a los productos que ya
+    # existen, porque cada uno guarda el suyo (no todos pagan el 19 %).
 
     db.commit()
     db.refresh(comercio)

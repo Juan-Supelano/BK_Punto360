@@ -47,7 +47,7 @@ export default function Recibo({ venta, comercio, recibido = null }) {
           <img className="rp-logo" src={comercio.logo_url} alt="" />
         )}
         <div className="rp-titulo">
-          {comercio?.nombre_visible || comercio?.razon_social || 'Cuadre POS'}
+          {comercio?.nombre_visible || comercio?.razon_social || 'Punto360®'}
         </div>
         {comercio?.razon_social &&
           comercio.razon_social !== comercio.nombre_visible && (
@@ -107,7 +107,6 @@ export default function Recibo({ venta, comercio, recibido = null }) {
                 <div className="rp-chico">
                   {Number(it.cantidad)} {it.producto.unidad_medida} ×{' '}
                   {pesos.format(Number(it.precio_unitario))}
-                  {Number(it.iva_pct) > 0 && ` · IVA ${Number(it.iva_pct)}%`}
                 </div>
               </td>
               <td className="rp-derecha rp-arriba">
@@ -127,11 +126,6 @@ export default function Recibo({ venta, comercio, recibido = null }) {
       <div className="rp-fila">
         <span>IVA</span>
         <span>{pesos.format(Number(venta.total_iva))}</span>
-      </div>
-      <div className="rp-chico">
-        {venta.precio_incluye_iva
-          ? 'Valores con IVA incluido en el precio'
-          : 'IVA calculado sobre el valor base'}
       </div>
       <div className="rp-fila rp-total">
         <strong>TOTAL</strong>
@@ -171,12 +165,41 @@ export default function Recibo({ venta, comercio, recibido = null }) {
         <div className="rp-pie">Documento no válido como factura electrónica</div>
         <div>¡Gracias por su compra!</div>
       </div>
+
+      <div className="rp-centro rp-chico rp-software">Generado con Punto360® · Sistema POS</div>
     </div>,
     document.body,
   )
 }
 
-/** Lanza el diálogo de impresión del navegador. */
+/**
+ * Lanza el diálogo de impresión del navegador.
+ *
+ * Si el logo del comercio todavía se está descargando, espera a que termine
+ * (máximo 3 s); si no, la hoja saldría sin la imagen.
+ */
 export function imprimir() {
-  window.print()
+  const pendientes = [
+    ...document.querySelectorAll('.recibo-print img, .informe-print img'),
+  ].filter((img) => !img.complete)
+  if (pendientes.length === 0) {
+    window.print()
+    return
+  }
+  let lanzado = false
+  const lanzar = () => {
+    if (lanzado) return
+    lanzado = true
+    window.print()
+  }
+  let faltan = pendientes.length
+  const terminar = () => {
+    faltan -= 1
+    if (faltan === 0) lanzar()
+  }
+  for (const img of pendientes) {
+    img.addEventListener('load', terminar, { once: true })
+    img.addEventListener('error', terminar, { once: true })
+  }
+  setTimeout(lanzar, 3000)
 }

@@ -6,12 +6,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app import auditoria
 from app.database import get_db
 from app.models import Categoria, MovimientoInventario, Producto, Usuario, Venta
 from app.models.producto import UNIDADES
 from app.schemas.movimiento import MovimientoLeer
 from app.schemas.producto import ProductoActualizar, ProductoCrear, ProductoLeer
-from app.seguridad import requerir_password_actualizada, usuario_actual
+from app.seguridad import requerir_password_actualizada, solo_admin, usuario_actual
 from app.texto import columna_plana, patron
 
 router = APIRouter(
@@ -73,6 +74,35 @@ def _siguiente_sku(db: Session, categoria: Categoria) -> str:
 _NUMERO_COMPRA = re.compile(r"^(?:Compra|Anulacion compra) (.+?)(?: - |: | \(|$)")
 
 
+def validar_codigo_libre(
+    db: Session, codigo: str | None, excepto_id: int | None = None
+) -> None:
+    """Un codigo de barras identifica un solo producto. Si ya lo tiene otro,
+    el mensaje dice cual, para que se pueda revisar."""
+    if not codigo:
+        return
+    consulta = select(Producto).where(Producto.codigo_barras == codigo)
+    if excepto_id is not None:
+        consulta = consulta.where(Producto.id != excepto_id)
+    otro = db.scalar(consulta)
+    if otro is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Ese codigo de barras ya lo tiene {otro.nombre} ({otro.sku})",
+        )
+
+
+def nuevo_producto(db: Session, campos: dict, iva_pct: Decimal) -> Producto:
+    """Producto listo para agregar a la sesion, con su SKU y el IVA del
+    comercio. Lo usan este router y el alta desde una compra."""
+    categoria = _buscar_categoria(db, campos["categoria_id"])
+    _validar_unidad(campos.get("unidad_medida"))
+    validar_codigo_libre(db, campos.get("codigo_barras"))
+    return Producto(
+        **campos, iva_pct=iva_pct, sku=_siguiente_sku(db, categoria), activo=True
+    )
+
+
 def _numero_compra(motivo: str | None) -> str | None:
     hallado = _NUMERO_COMPRA.match(motivo or "")
     return hallado.group(1) if hallado else None
@@ -96,12 +126,14 @@ def listar(
     if categoria_id is not None:
         consulta = consulta.where(Producto.categoria_id == categoria_id)
     if buscar:
-        # Busca ignorando tildes: "panaderia" encuentra "Panadería".
+        # Busca ignorando tildes: "panaderia" encuentra "Panadería". El codigo
+        # de barras tambien cuenta, aunque no se muestre en la tabla.
         aguja = patron(buscar)
         consulta = consulta.where(
             or_(
                 columna_plana(Producto.nombre).like(aguja),
                 columna_plana(Producto.sku).like(aguja),
+                Producto.codigo_barras.like(f"%{buscar.strip()}%"),
             )
         )
     if solo_stock_bajo:
@@ -173,18 +205,23 @@ def movimientos(
 
 
 @router.post("", response_model=ProductoLeer, status_code=status.HTTP_201_CREATED)
-def crear(datos: ProductoCrear, db: Session = Depends(get_db)):
+def crear(
+    datos: ProductoCrear,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_actual),
+):
     """El SKU no se recibe: siempre lo arma el backend con el prefijo de la
-    categoria, que es lo que digito el administrador al crearla."""
-    categoria = _buscar_categoria(db, datos.categoria_id)
-    _validar_unidad(datos.unidad_medida)
-
+    categoria, que es lo que digito el administrador al crearla. Si no llega
+    IVA, se usa el IVA por defecto de Mi empresa."""
     campos = datos.model_dump()
+    iva_pct = campos.pop("iva_pct")
+    if iva_pct is None:
+        iva_pct = usuario.comercio.iva_pct
 
     # Si dos cajeros crean productos a la vez pueden calcular el mismo
     # consecutivo. El UNIQUE de la base rechaza al segundo y aqui se reintenta.
     for _ in range(5):
-        producto = Producto(**campos, sku=_siguiente_sku(db, categoria), activo=True)
+        producto = nuevo_producto(db, campos, iva_pct)
         db.add(producto)
         try:
             db.commit()
@@ -202,10 +239,19 @@ def crear(datos: ProductoCrear, db: Session = Depends(get_db)):
 
 @router.put("/{producto_id}", response_model=ProductoLeer)
 def actualizar(
-    producto_id: int, datos: ProductoActualizar, db: Session = Depends(get_db)
+    producto_id: int,
+    datos: ProductoActualizar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_actual),
 ):
     producto = _buscar(db, producto_id)
     cambios = datos.model_dump(exclude_unset=True)
+
+    # Activar o desactivar un producto es solo del ADMIN, tambien por aqui.
+    if "activo" in cambios and not usuario.es_admin:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Solo un ADMIN puede activar o desactivar productos"
+        )
 
     if "categoria_id" in cambios:
         _buscar_categoria(db, cambios["categoria_id"])
@@ -213,9 +259,13 @@ def actualizar(
         # estar impreso en etiquetas o usado por un proveedor.
     if "unidad_medida" in cambios:
         _validar_unidad(cambios["unidad_medida"])
+    if cambios.get("codigo_barras"):
+        validar_codigo_libre(db, cambios["codigo_barras"], excepto_id=producto.id)
 
+    antes = auditoria.foto(producto, auditoria.CAMPOS_PRODUCTO)
     for campo, valor in cambios.items():
         setattr(producto, campo, valor)
+    auditoria.registrar(db, usuario, "producto", producto, antes, auditoria.CAMPOS_PRODUCTO)
 
     db.commit()
     db.refresh(producto)
@@ -262,9 +312,15 @@ def ajustar_stock(
 
 
 @router.delete("/{producto_id}", response_model=ProductoLeer)
-def desactivar(producto_id: int, db: Session = Depends(get_db)):
-    """No borra el registro: lo marca como inactivo."""
+def desactivar(
+    producto_id: int,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(solo_admin),
+):
+    """Solo ADMIN. No borra el registro: lo marca como inactivo."""
     producto = _buscar(db, producto_id)
+    if producto.activo:
+        auditoria.anotar(db, admin, "producto", producto, "activo", "Sí", "No")
     producto.activo = False
     db.commit()
     db.refresh(producto)
@@ -272,8 +328,15 @@ def desactivar(producto_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{producto_id}/reactivar", response_model=ProductoLeer)
-def reactivar(producto_id: int, db: Session = Depends(get_db)):
+def reactivar(
+    producto_id: int,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(solo_admin),
+):
+    """Solo ADMIN."""
     producto = _buscar(db, producto_id)
+    if not producto.activo:
+        auditoria.anotar(db, admin, "producto", producto, "activo", "No", "Sí")
     producto.activo = True
     db.commit()
     db.refresh(producto)

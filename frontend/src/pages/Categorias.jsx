@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { useAuth } from '../auth.jsx'
+import { mayusculaInicial } from '../texto.js'
 
 const VACIO = { nombre: '', descripcion: '', prefijo_sku: '' }
 
@@ -119,7 +120,7 @@ export default function Categorias() {
               maxLength={80}
               placeholder="Bebidas"
               value={formulario.nombre}
-              onChange={(e) => setFormulario({ ...formulario, nombre: e.target.value })}
+              onChange={(e) => setFormulario({ ...formulario, nombre: mayusculaInicial(e.target.value) })}
             />
           </label>
 

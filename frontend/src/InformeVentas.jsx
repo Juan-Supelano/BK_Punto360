@@ -71,11 +71,14 @@ export default function InformeVentas({
   return createPortal(
     <div className="informe-print">
       <header className="inf-cabeza">
-        <div>
-          <div className="inf-comercio">
-            {comercio?.nombre_visible || comercio?.razon_social || 'Cuadre POS'}
+        <div className="inf-empresa">
+          {comercio?.logo_url && <img className="inf-logo" src={comercio.logo_url} alt="" />}
+          <div>
+            <div className="inf-comercio">
+              {comercio?.nombre_visible || comercio?.razon_social || 'Punto360®'}
+            </div>
+            <div>NIT {comercio?.nit}</div>
           </div>
-          <div>NIT {comercio?.nit}</div>
         </div>
         <div className="inf-titulo">
           <h1>Informe de ventas</h1>
@@ -194,9 +197,9 @@ export default function InformeVentas({
         </tbody>
       </table>
 
-      <p className="inf-pie">
-        Las ventas anuladas aparecen tachadas y no suman en los totales.
-      </p>
+      {/* "Generado con Punto360®" y el número de página van en el pie de cada
+          hoja (@page informe en styles.css). */}
+      <p className="inf-pie">Las ventas anuladas aparecen tachadas y no suman en los totales.</p>
     </div>,
     document.body,
   )

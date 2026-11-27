@@ -1,0 +1,24 @@
+# HU-21: le dice a Prometheus (chart kube-prometheus-stack, release monitoreo)
+# que lea /metrics de la API cada 15 segundos.
+#
+# Busca el Service con la etiqueta app: punto360-api y su puerto "http"
+# (03-api.yaml); Prometheus descubre solo cada réplica detrás de ese Service.
+#
+# Requiere que el chart ya esté instalado: el tipo ServiceMonitor lo crea él.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: punto360-api
+  namespace: punto360
+  labels:
+    app: punto360-api
+    # Etiqueta que el chart usa por defecto para elegir ServiceMonitors.
+    release: monitoreo
+spec:
+  selector:
+    matchLabels:
+      app: punto360-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

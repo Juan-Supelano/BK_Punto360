@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
+import Paginacion, { usePaginacion } from '../Paginacion.jsx'
+import { mayusculaInicial } from '../texto.js'
 
 const TIPOS_DOC = ['CC', 'NIT', 'CE', 'TI', 'PAS']
 
@@ -49,6 +51,8 @@ export default function Clientes() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  const pag = usePaginacion(clientes, `${busqueda}|${incluirInactivos}`)
 
   function abrirNuevo() {
     setFormulario(VACIO)
@@ -117,9 +121,10 @@ export default function Clientes() {
     }
   }
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   return (
@@ -176,7 +181,7 @@ export default function Clientes() {
             )}
 
             {!cargando &&
-              clientes.map((c) => (
+              pag.visibles.map((c) => (
                 <tr key={c.id} className={c.activo ? '' : 'fila-inactiva'}>
                   <td className="mono">
                     {c.tipo_doc} {c.num_doc}
@@ -213,6 +218,8 @@ export default function Clientes() {
         </table>
       </div>
 
+      <Paginacion {...pag} />
+
       {panelAbierto && (
         <div className="fondo-modal" onClick={cerrarPanel}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={guardar}>
@@ -247,7 +254,7 @@ export default function Clientes() {
 
               <label className="campo campo-ancho">
                 <span>Nombre</span>
-                <input required maxLength={150} {...campo('nombre')} />
+                <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
               </label>
 
               <label className="campo">

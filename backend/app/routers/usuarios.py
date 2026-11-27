@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app import auditoria
 from app.database import get_db
 from app.models import Usuario
 from app.schemas.usuario import (
@@ -108,8 +109,10 @@ def actualizar(
     if "nombre" in cambios:
         cambios["nombre"] = cambios["nombre"].strip()
 
+    antes = auditoria.foto(usuario, auditoria.CAMPOS_USUARIO)
     for campo, valor in cambios.items():
         setattr(usuario, campo, valor)
+    auditoria.registrar(db, admin, "usuario", usuario, antes, auditoria.CAMPOS_USUARIO)
 
     db.commit()
     db.refresh(usuario)
@@ -128,6 +131,8 @@ def desactivar(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "No puedes desactivar tu propia cuenta"
         )
+    if usuario.activo:
+        auditoria.anotar(db, admin, "usuario", usuario, "activo", "Sí", "No")
     usuario.activo = False
     db.commit()
     db.refresh(usuario)
@@ -142,6 +147,8 @@ def reactivar(
 ):
     """Solo ADMIN."""
     usuario = _buscar(db, admin, usuario_id)
+    if not usuario.activo:
+        auditoria.anotar(db, admin, "usuario", usuario, "activo", "No", "Sí")
     usuario.activo = True
     db.commit()
     db.refresh(usuario)
@@ -162,6 +169,8 @@ def resetear_password(
     temporal = _generar_password_temporal()
     usuario.password_hash = hashear(temporal)
     usuario.debe_cambiar_password = True
+    # La clave no se guarda en la auditoria, solo que se reinicio y quien lo hizo.
+    auditoria.anotar(db, admin, "usuario", usuario, "contrasena", None, "Reiniciada")
     db.commit()
 
     return ResetPasswordOut(

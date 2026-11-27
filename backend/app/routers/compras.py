@@ -17,14 +17,14 @@ from app.models import (
 )
 from app.impuestos import base_sin_iva, desglosar
 from app.schemas.compra import CompraAnular, CompraCrear, CompraLeer, CompraListada
+from app.routers.productos import nuevo_producto
 from app.seguridad import requerir_password_actualizada, solo_admin
 
-# Consultar compras: cualquiera con sesion, tambien el cajero.
-# Registrar y anular: solo ADMIN (se declara en cada endpoint).
+# Todo el modulo de compras es solo para ADMIN: el cajero no lo ve.
 router = APIRouter(
     prefix="/compras",
     tags=["Compras"],
-    dependencies=[Depends(requerir_password_actualizada)],
+    dependencies=[Depends(requerir_password_actualizada), Depends(solo_admin)],
 )
 
 CENTAVO = Decimal("0.01")
@@ -151,6 +151,8 @@ def crear(
     # Un producto no puede venir dos veces: se suman las cantidades antes.
     vistos: dict[int, int] = {}
     for linea in datos.items:
+        if linea.producto_id is None:
+            continue  # producto nuevo
         if linea.producto_id in vistos:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -158,13 +160,23 @@ def crear(
             )
         vistos[linea.producto_id] = 1
 
+    # La casilla de "costos con IVA" llega de la pantalla y, si no llega, vale
+    # lo configurado en Mi empresa. El IVA va por linea.
+    comercio = admin.comercio
+    iva_defecto = Decimal(comercio.iva_pct)
+    incluye_iva = (
+        comercio.precio_incluye_iva
+        if datos.costo_incluye_iva is None
+        else datos.costo_incluye_iva
+    )
+
     compra = Compra(
         proveedor_id=proveedor.id,
         numero_factura=factura,
         subtotal=Decimal("0"),
         total_iva=Decimal("0"),
         total=Decimal("0"),
-        costo_incluye_iva=datos.costo_incluye_iva,
+        costo_incluye_iva=incluye_iva,
         estado="RECIBIDA",
     )
     db.add(compra)
@@ -174,7 +186,23 @@ def crear(
     total_iva = Decimal("0")
 
     for linea in datos.items:
-        producto = db.get(Producto, linea.producto_id)
+        if linea.producto_nuevo is not None:
+            # Se crea aqui mismo, dentro de la transaccion de la compra.
+            producto = nuevo_producto(
+                db,
+                {
+                    **linea.producto_nuevo.model_dump(),
+                    "nombre": linea.producto_nuevo.nombre.strip(),
+                    "descripcion": None,
+                    "costo": Decimal("0"),
+                    "stock_actual": 0,
+                },
+                iva_defecto if linea.iva_pct is None else linea.iva_pct,
+            )
+            db.add(producto)
+            db.flush()  # le da id para la linea y el kardex
+        else:
+            producto = db.get(Producto, linea.producto_id)
         if producto is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -186,18 +214,16 @@ def crear(
                 f"El producto {producto.sku} esta desactivado",
             )
 
+        # IVA de la linea: el que llega, o el que ya tenia el producto.
+        iva_pct = Decimal(producto.iva_pct if linea.iva_pct is None else linea.iva_pct)
+
         costo_facturado = Decimal(linea.costo_unitario)
         subtotal_linea, iva_linea, _total_linea = desglosar(
-            costo_facturado,
-            linea.cantidad,
-            Decimal(producto.iva_pct),
-            datos.costo_incluye_iva,
+            costo_facturado, linea.cantidad, iva_pct, incluye_iva
         )
         # El inventario se valora SIN IVA: ese impuesto es descontable y no
         # hace parte de lo que vale la mercancia.
-        costo_limpio = base_sin_iva(
-            costo_facturado, Decimal(producto.iva_pct), datos.costo_incluye_iva
-        )
+        costo_limpio = base_sin_iva(costo_facturado, iva_pct, incluye_iva)
 
         db.add(
             CompraItem(
@@ -206,6 +232,7 @@ def crear(
                 cantidad=Decimal(linea.cantidad),
                 costo_unitario=costo_facturado,
                 subtotal_linea=subtotal_linea,
+                iva_pct=iva_pct,
             )
         )
 
@@ -216,6 +243,8 @@ def crear(
         # en un POS de mostrador; un promedio ponderado seria mas fino pero mas
         # pesado de mantener.
         producto.costo = costo_limpio
+        # El producto queda con el IVA de su ultima compra: es el que usa la venta.
+        producto.iva_pct = iva_pct
 
         db.add(
             MovimientoInventario(

@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -18,6 +19,11 @@ class ComercioLeer(BaseModel):
     telefono: str | None
     email: str | None
     logo_url: str | None
+    # Configuracion del IVA. La recibe tambien el cajero, porque sus pantallas
+    # la usan para calcular; solo el ADMIN la ve y la cambia en Mi empresa.
+    iva_pct: Decimal
+    precio_incluye_iva: bool
+    escaneo_camara: bool
 
 
 class ComercioActualizar(BaseModel):
@@ -29,6 +35,9 @@ class ComercioActualizar(BaseModel):
     telefono: str | None = Field(default=None, max_length=30)
     email: str | None = Field(default=None, max_length=120)
     logo_url: str | None = Field(default=None, max_length=500)
+    iva_pct: Decimal | None = Field(default=None, ge=0, le=100)
+    precio_incluye_iva: bool | None = None
+    escaneo_camara: bool | None = None
 
 
 class UsuarioLeer(BaseModel):

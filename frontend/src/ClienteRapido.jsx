@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from './api.js'
+import { mayusculaInicial } from './texto.js'
 
 const TIPOS_DOC = ['CC', 'NIT', 'CE', 'TI', 'PAS']
 
@@ -23,9 +24,10 @@ export default function ClienteRapido({ onCerrar, onCreado }) {
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
 
-  const campo = (nombre) => ({
+  // transformar: por ejemplo mayusculaInicial para los nombres.
+  const campo = (nombre, transformar = (v) => v) => ({
     value: formulario[nombre],
-    onChange: (e) => setFormulario({ ...formulario, [nombre]: e.target.value }),
+    onChange: (e) => setFormulario({ ...formulario, [nombre]: transformar(e.target.value) }),
   })
 
   async function guardar(evento) {
@@ -80,7 +82,7 @@ export default function ClienteRapido({ onCerrar, onCreado }) {
 
           <label className="campo campo-ancho">
             <span>Nombre</span>
-            <input required maxLength={150} {...campo('nombre')} />
+            <input required maxLength={150} {...campo('nombre', mayusculaInicial)} />
           </label>
 
           <label className="campo">
