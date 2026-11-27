@@ -14,18 +14,17 @@ Sistema de punto de venta (POS) para la gestión de productos, inventario, venta
 
 ## Gestión colaborativa del proyecto
 
-Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, migrando por historias de usuario un POS que ya funcionaba.
+Punto360 se desarrolló en equipo con GitHub Projects, Kanban y cinco sprints: en los tres primeros (Proyecto 2) se migró por historias de usuario un POS que ya funcionaba, y en los dos últimos (Proyecto 3) se agregaron Kubernetes, monitoreo, seguridad, la IA predictiva y mejoras de uso.
 
 ### Equipo de desarrollo
 
 | Rol | Integrante | Historias |
 | --- | --- | --- |
-| Product Owner | [POR COMPLETAR] | — |
-| Backend y base de datos | @paulatatian | HU-01, 02, 07, 08, 13, 14 |
-| Frontend | @pipereinaa | HU-03, 04, 09, 10, 15, 16 |
-| DevOps y documentación | @Juan-Supelano | HU-05, 06, 11, 12, 17, 18 |
+| Product Owner, DevOps y documentación | @Juan-Supelano | HU-05, 06, 11, 12, 17, 18 · HU-25, 26, 27 · HU-28 a HU-33 |
+| Backend y base de datos | @paulatatian | HU-01, 02, 07, 08, 13, 14 · HU-19, 20, 21 |
+| Frontend | @pipereinaa | HU-03, 04, 09, 10, 15, 16 · HU-22, 23, 24 |
 
-@Juan-Supelano revisa y aprueba los PR; los suyos los revisa @paulatatian.
+@Juan-Supelano revisa y aprueba los PR; los suyos los revisó @paulatatian en el Proyecto 2 y @pipereinaa en el Proyecto 3.
 
 ### Arquitectura
 
@@ -33,13 +32,16 @@ Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, mi
 - **Backend:** FastAPI (Python 3.12), SQLAlchemy, JWT
 - **Base de datos:** PostgreSQL 16 (Cloud SQL)
 - **Infraestructura:** Google Cloud Platform (Cloud Run, Cloud SQL, Secret Manager, Artifact Registry)
-- **CI/CD:** GitHub Actions (`ci.yml`, `deploy.yml`, `project-automation.yml`) y Cloud Build
-- **Contenedores:** Docker y docker compose
+- **Orquestación:** Kubernetes (`k8s/`): API con 2 réplicas, frontend, PostgreSQL en StatefulSet, ConfigMap y Secret
+- **Monitoreo:** Prometheus y Grafana dentro del clúster (kube-prometheus-stack), con métricas en `/metrics`
+- **IA:** módulo predictivo local con statsmodels (Holt-Winters) y Poisson, sin servicios externos ([docs/ia.md](docs/ia.md))
+- **CI/CD:** GitHub Actions (`ci.yml`, `deploy.yml`, `imagenes.yml`, `project-automation.yml`) y Cloud Build
+- **Contenedores:** Docker y docker compose; imágenes publicadas en GitHub Container Registry
 
 ### Metodología
 
 - **Tablero:** Backlog → Ready → In Progress → Review → Done, con campos Sprint, Responsable, Prioridad, Estimación y Tipo.
-- **Historias:** 18, seis por integrante y dos por sprint, con criterios de aceptación como casillas.
+- **Historias:** 33 en cinco sprints, con criterios de aceptación como casillas. Proyecto 2: HU-01 a HU-18, seis por integrante. Proyecto 3: HU-19 a HU-33.
 - **Ramas:** `main`, `produccion`, `preproduccion` y `desarrollo`. Cada HU sale de `desarrollo` en una rama `feature/HU-XX-...` y vuelve por PR con revisión.
 - **Commits:** `feat(HU-XX): descripción`, con `Refs #N` al issue de la HU.
 - **Automatización:** al asignar un issue la tarjeta pasa a In Progress; al abrir el PR, a Review; al fusionarlo, a Done y el issue se cierra.
@@ -51,17 +53,21 @@ Punto360 se desarrolló en equipo con GitHub Projects, Kanban y tres sprints, mi
 | Sprint 1 | Fundamentos | HU-01 Esquema y datos semilla · HU-02 API base · HU-03 Proyecto React · HU-04 Login · HU-05 Docker · HU-06 CI |
 | Sprint 2 | Funcionalidad principal | HU-07 JWT y roles · HU-08 API de catálogo e inventario · HU-09 Pantallas de catálogo · HU-10 Clientes y perfil · HU-11 Pruebas · HU-12 Cloud SQL |
 | Sprint 3 | Ventas, despliegue y cierre | HU-13 API de ventas · HU-14 Usuarios · HU-15 Punto de venta · HU-16 Estabilización · HU-17 Despliegue · HU-18 Documentación |
+| Sprint 4 | Kubernetes, monitoreo, seguridad e IA | HU-19 Imágenes en GHCR · HU-20 Manifiestos de Kubernetes · HU-21 Prometheus y Grafana en el clúster · HU-22 Autenticación JWT reforzada · HU-23 Secretos fuera del código · HU-24 Métricas HTTP y tráfico de prueba · HU-25 Motor predictivo · HU-26 Informe predictivo · HU-27 Documentación de la IA |
+| Sprint 5 | Usabilidad y control | HU-28 Usabilidad del punto de venta · HU-29 IVA y permisos por rol · HU-30 Código de barras · HU-31 Escaneo con cámara · HU-32 Auditoría de cambios · HU-33 Aplicación usable en el celular |
 
 Los PR de cada historia, sus fechas y la evidencia están en [docs/metricas.md](docs/metricas.md) y en el [tablero](https://github.com/users/Juan-Supelano/projects/5).
 
 ### Métricas
 
-Resumen de [docs/metricas.md](docs/metricas.md), generado con `metricas.py`:
+Resumen de [docs/metricas.md](docs/metricas.md). Se calcula con los issues y PRs de GitHub y se actualiza con `python scripts/metricas.py`, que reescribe este bloque:
 
-- **Velocity promedio:** [POR COMPLETAR] puntos por sprint
-- **Historias completadas:** [POR COMPLETAR]/18
-- **Bugs encontrados:** [POR COMPLETAR]
-- **Tiempo promedio de resolución (lead time):** [POR COMPLETAR]
+<!-- metricas:inicio -->
+- **Velocity promedio:** 35.5 puntos por sprint
+- **Historias completadas:** 13/15
+- **Bugs encontrados:** 0
+- **Tiempo promedio de resolución (lead time):** 2.8 días
+<!-- metricas:fin -->
 
 ### Instalación rápida
 
@@ -85,8 +91,8 @@ Frontend en http://localhost:8080 y API en http://localhost:8000/docs. La instal
 
 ### Enlaces
 
-- [Aplicación](POR COMPLETAR: URL de cuadre-pos-web)
-- [Videos de demostración](POR COMPLETAR: enlace de Drive)
+- [Aplicación](https://cuadre-pos-web-408401553453.us-central1.run.app/)
+- Enlace del video:
 - [API](https://cuadre-pos-api-kbybcvo7wa-uc.a.run.app/docs)
 - [GitHub Project](https://github.com/users/Juan-Supelano/projects/5)
 
@@ -735,8 +741,8 @@ La aplicación completa también corre en un clúster local de Kubernetes, con P
 |---|---|---|
 | Imágenes | `.github/workflows/imagenes.yml` | Publica `ghcr.io/juan-supelano/punto360-api` y `punto360-web` (etiquetas `latest` y SHA del commit) |
 | Namespace | `k8s/00-namespace.yaml` | Agrupa todo en `punto360` |
-| ConfigMap | `k8s/01-configmap.yaml` | Configuración no sensible: `CORS_ORIGENES`, `JWT_MINUTOS`, `IA_MODELO` |
-| Secret | `k8s/secret.yaml` (se crea desde `k8s/secret.example.yaml`, nunca se sube) | `POSTGRES_PASSWORD`, `DATABASE_URL`, `JWT_SECRETO`, `IA_API_KEY` |
+| ConfigMap | `k8s/01-configmap.yaml` | Configuración no sensible: `CORS_ORIGENES` y `JWT_MINUTOS` |
+| Secret | `k8s/secret.yaml` (se crea desde `k8s/secret.example.yaml`, nunca se sube) | `POSTGRES_PASSWORD`, `DATABASE_URL` y `JWT_SECRETO` |
 | PostgreSQL | `k8s/02-postgres.yaml` | StatefulSet con volumen persistente; se inicializa con `database/schema.sql` y `seed.sql` (ConfigMap `db-init`) |
 | API | `k8s/03-api.yaml` | Deployment con 2 réplicas, readiness en `/listo`, liveness en `/salud`, requests/limits y Service |
 | Frontend | `k8s/04-web.yaml` | Deployment con nginx y Service |

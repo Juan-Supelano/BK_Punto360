@@ -42,12 +42,6 @@ spec:
                 secretKeyRef:
                   name: punto360-secret
                   key: JWT_SECRETO
-            - name: IA_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: punto360-secret
-                  key: IA_API_KEY
-                  optional: true
           readinessProbe:
             httpGet:
               path: /listo

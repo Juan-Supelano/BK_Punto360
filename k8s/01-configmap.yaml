@@ -12,5 +12,3 @@ data:
   CORS_ORIGENES: "http://localhost:8080"
   # Duración del token de sesión en minutos: 480 = un turno de caja.
   JWT_MINUTOS: "480"
-  # Modelo de lenguaje del asistente de inventario (HU-25).
-  IA_MODELO: "gemini-2.5-flash"
